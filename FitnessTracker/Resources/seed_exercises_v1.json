@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "exercises": [
+    { "name": "Barbell Bench Press", "category": "Chest", "equipment": "Barbell" },
+    { "name": "Incline Dumbbell Press", "category": "Chest", "equipment": "Dumbbell" },
+    { "name": "Overhead Press", "category": "Shoulders", "equipment": "Barbell" },
+    { "name": "Cable Triceps Pushdown", "category": "Triceps", "equipment": "Cable" },
+    { "name": "Barbell Row", "category": "Back", "equipment": "Barbell" },
+    { "name": "Lat Pulldown", "category": "Back", "equipment": "Cable" },
+    { "name": "Barbell Curl", "category": "Biceps", "equipment": "Barbell" },
+    { "name": "Back Squat", "category": "Legs", "equipment": "Barbell" },
+    { "name": "Romanian Deadlift", "category": "Legs", "equipment": "Barbell" },
+    { "name": "Seated Calf Raise", "category": "Legs", "equipment": "Machine" }
+  ]
+}
