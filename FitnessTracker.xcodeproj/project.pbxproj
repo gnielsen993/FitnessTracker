@@ -277,21 +277,6 @@
 		};
 /* End PBXTargetDependency section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		A1B2C3D62F40000100AA0001 /* XCLocalSwiftPackageReference "../DesignKit" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../DesignKit;
-		};
-/* End XCLocalSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		A1B2C3D52F40000100AA0001 /* DesignKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A1B2C3D62F40000100AA0001 /* XCLocalSwiftPackageReference "../DesignKit" */;
-			productName = DesignKit;
-		};
-/* End XCSwiftPackageProductDependency section */
-
 /* Begin XCBuildConfiguration section */
 		5FB3E7EF2F3F8C6E006EAD64 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -602,6 +587,21 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		A1B2C3D62F40000100AA0001 /* XCLocalSwiftPackageReference "../DesignKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../DesignKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A1B2C3D52F40000100AA0001 /* DesignKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1B2C3D62F40000100AA0001 /* XCLocalSwiftPackageReference "../DesignKit" */;
+			productName = DesignKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 5FB3E7C82F3F8C6D006EAD64 /* Project object */;
 }
