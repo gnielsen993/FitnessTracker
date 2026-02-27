@@ -110,6 +110,7 @@ struct HomeView: View {
                     .accessibilityLabel("Open training insights")
                 }
                 .padding(theme.spacing.l)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .background(theme.colors.background.ignoresSafeArea())
             .navigationTitle("Home")

@@ -80,6 +80,7 @@ struct TrainView: View {
                     }
                 }
                 .padding(theme.spacing.l)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .background(theme.colors.background.ignoresSafeArea())
             .navigationTitle("Train")
@@ -263,6 +264,7 @@ private struct CoverageDetailsView: View {
                     }
                 }
                 .padding(theme.spacing.l)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .background(theme.colors.background.ignoresSafeArea())
             .navigationTitle("Coverage")
