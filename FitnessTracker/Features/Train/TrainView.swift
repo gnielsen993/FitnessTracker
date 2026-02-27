@@ -129,7 +129,11 @@ struct TrainView: View {
         DKCard(theme: theme) {
             VStack(alignment: .leading, spacing: theme.spacing.m) {
                 HStack(spacing: theme.spacing.s) {
-                    DKButton(viewModel.activeSession == nil ? "Start Workout" : "End Workout", theme: theme) {
+                    DKButton(
+                        viewModel.activeSession == nil ? "Start Workout" : "End Workout",
+                        theme: theme,
+                        isEnabled: viewModel.activeSession != nil || viewModel.selectedSplit != nil
+                    ) {
                         do {
                             if viewModel.activeSession == nil {
                                 guard let split = viewModel.selectedSplit else { return }
@@ -223,6 +227,7 @@ struct TrainView: View {
                             errorMessage = error.localizedDescription
                         }
                     }
+                    .disabled((Int(setReps) ?? 0) <= 0 || (Double(setWeight) ?? 0) < 0)
                 }
             }
         }

@@ -24,6 +24,11 @@ final class TrainViewModel: ObservableObject {
 
     func addExercise(_ exercise: Exercise, context: ModelContext) throws {
         guard let session = activeSession else { return }
+
+        if session.loggedExercises.contains(where: { $0.exercise?.id == exercise.id }) {
+            throw TrainError.exerciseAlreadyAdded
+        }
+
         let nextIndex = session.loggedExercises.count
         let logged = LoggedExercise(orderIndex: nextIndex, session: session, exercise: exercise)
         context.insert(logged)
@@ -39,6 +44,9 @@ final class TrainViewModel: ObservableObject {
         to loggedExercise: LoggedExercise,
         context: ModelContext
     ) throws {
+        guard reps > 0 else { throw TrainError.invalidReps }
+        guard weight >= 0 else { throw TrainError.invalidWeight }
+
         let set = LoggedSet(reps: reps, weight: weight, isWarmup: isWarmup, loggedExercise: loggedExercise)
         context.insert(set)
         loggedExercise.sets.append(set)
@@ -52,5 +60,22 @@ final class TrainViewModel: ObservableObject {
         try context.save()
         activeSession = nil
         coverageReport = nil
+    }
+}
+
+enum TrainError: LocalizedError {
+    case exerciseAlreadyAdded
+    case invalidReps
+    case invalidWeight
+
+    var errorDescription: String? {
+        switch self {
+        case .exerciseAlreadyAdded:
+            return "Exercise already exists in this workout."
+        case .invalidReps:
+            return "Reps must be greater than 0."
+        case .invalidWeight:
+            return "Weight cannot be negative."
+        }
     }
 }
