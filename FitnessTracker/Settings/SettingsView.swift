@@ -18,6 +18,7 @@ struct SettingsView: View {
     @State private var statusMessage: String?
 
     private let exportService = ExportImportService()
+    private let storageVersionService = StorageVersionService()
 
     private var theme: Theme {
         themeManager.theme(for: colorScheme)
@@ -51,6 +52,20 @@ struct SettingsView: View {
 
                     DKCard(theme: theme) {
                         VStack(alignment: .leading, spacing: theme.spacing.m) {
+                            Text("Data")
+                                .font(theme.typography.headline)
+                                .foregroundStyle(theme.colors.textPrimary)
+
+                            Text("Storage mode: Local-first")
+                                .font(theme.typography.body)
+                                .foregroundStyle(theme.colors.textPrimary)
+
+                            Text("Schema version: \(storageVersionService.currentVersion)")
+                                .font(theme.typography.caption)
+                                .foregroundStyle(theme.colors.textSecondary)
+
+                            Divider()
+
                             Text("Backup")
                                 .font(theme.typography.headline)
                                 .foregroundStyle(theme.colors.textPrimary)

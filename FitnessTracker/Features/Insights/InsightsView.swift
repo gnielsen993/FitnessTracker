@@ -17,15 +17,23 @@ struct InsightsView: View {
                 VStack(alignment: .leading, spacing: theme.spacing.l) {
                     DKSectionHeader("Training Insights", subtitle: "Rule-based tips from local data", theme: theme)
 
-                    ForEach(tips) { tip in
-                        DKCard(theme: theme) {
-                            VStack(alignment: .leading, spacing: theme.spacing.s) {
-                                Text(tip.title)
-                                    .font(theme.typography.headline)
-                                    .foregroundStyle(theme.colors.textPrimary)
-                                Text(tip.message)
-                                    .font(theme.typography.body)
-                                    .foregroundStyle(theme.colors.textSecondary)
+                    if tips.isEmpty {
+                        ContentUnavailableView(
+                            "No insights yet",
+                            systemImage: "lightbulb",
+                            description: Text("Complete a few workouts and insights will show up here.")
+                        )
+                    } else {
+                        ForEach(tips) { tip in
+                            DKCard(theme: theme) {
+                                VStack(alignment: .leading, spacing: theme.spacing.s) {
+                                    Text(tip.title)
+                                        .font(theme.typography.headline)
+                                        .foregroundStyle(theme.colors.textPrimary)
+                                    Text(tip.message)
+                                        .font(theme.typography.body)
+                                        .foregroundStyle(theme.colors.textSecondary)
+                                }
                             }
                         }
                     }

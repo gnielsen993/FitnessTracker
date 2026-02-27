@@ -58,21 +58,30 @@ struct HomeView: View {
                                 .font(theme.typography.headline)
                                 .foregroundStyle(theme.colors.textPrimary)
 
-                            Chart(recentSeries, id: \.0) { item in
-                                AreaMark(
-                                    x: .value("Date", item.0),
-                                    y: .value("Volume", item.1)
+                            if recentSeries.isEmpty {
+                                ContentUnavailableView(
+                                    "No sessions yet",
+                                    systemImage: "chart.line.uptrend.xyaxis",
+                                    description: Text("Log your first workout to unlock trend charts.")
                                 )
-                                .foregroundStyle(theme.charts.chart2.opacity(0.18))
+                                .frame(height: 170)
+                            } else {
+                                Chart(recentSeries, id: \.0) { item in
+                                    AreaMark(
+                                        x: .value("Date", item.0),
+                                        y: .value("Volume", item.1)
+                                    )
+                                    .foregroundStyle(theme.charts.chart2.opacity(0.18))
 
-                                LineMark(
-                                    x: .value("Date", item.0),
-                                    y: .value("Volume", item.1)
-                                )
-                                .foregroundStyle(theme.charts.chart1)
+                                    LineMark(
+                                        x: .value("Date", item.0),
+                                        y: .value("Volume", item.1)
+                                    )
+                                    .foregroundStyle(theme.charts.chart1)
+                                }
+                                .dkChartStyle(theme: theme)
+                                .frame(height: 170)
                             }
-                            .dkChartStyle(theme: theme)
-                            .frame(height: 170)
                         }
                     }
 
@@ -98,6 +107,7 @@ struct HomeView: View {
                     DKButton("View Insights", style: .secondary, theme: theme) {
                         showingInsights = true
                     }
+                    .accessibilityLabel("Open training insights")
                 }
                 .padding(theme.spacing.l)
             }

@@ -62,15 +62,24 @@ struct ProgressView: View {
                                 .font(theme.typography.headline)
                                 .foregroundStyle(theme.colors.textPrimary)
 
-                            Chart(volumeSeries, id: \.date) { item in
-                                LineMark(
-                                    x: .value("Date", item.date),
-                                    y: .value("Volume", item.value)
+                            if volumeSeries.isEmpty {
+                                ContentUnavailableView(
+                                    "No progress data",
+                                    systemImage: "chart.xyaxis.line",
+                                    description: Text("Complete workouts to see your trend over time.")
                                 )
-                                .foregroundStyle(theme.charts.chart1)
+                                .frame(height: 220)
+                            } else {
+                                Chart(volumeSeries, id: \.date) { item in
+                                    LineMark(
+                                        x: .value("Date", item.date),
+                                        y: .value("Volume", item.value)
+                                    )
+                                    .foregroundStyle(theme.charts.chart1)
+                                }
+                                .dkChartStyle(theme: theme)
+                                .frame(height: 220)
                             }
-                            .dkChartStyle(theme: theme)
-                            .frame(height: 220)
                         }
                     }
 
@@ -80,15 +89,24 @@ struct ProgressView: View {
                                 .font(theme.typography.headline)
                                 .foregroundStyle(theme.colors.textPrimary)
 
-                            Chart(sessionCountSeries, id: \.date) { item in
-                                BarMark(
-                                    x: .value("Date", item.date),
-                                    y: .value("Sessions", item.value)
+                            if sessionCountSeries.isEmpty {
+                                ContentUnavailableView(
+                                    "No frequency data",
+                                    systemImage: "calendar",
+                                    description: Text("Session bars appear once you log workouts.")
                                 )
-                                .foregroundStyle(theme.charts.chart3)
+                                .frame(height: 170)
+                            } else {
+                                Chart(sessionCountSeries, id: \.date) { item in
+                                    BarMark(
+                                        x: .value("Date", item.date),
+                                        y: .value("Sessions", item.value)
+                                    )
+                                    .foregroundStyle(theme.charts.chart3)
+                                }
+                                .dkChartStyle(theme: theme)
+                                .frame(height: 170)
                             }
-                            .dkChartStyle(theme: theme)
-                            .frame(height: 170)
                         }
                     }
                 }

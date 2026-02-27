@@ -10,6 +10,7 @@ struct AppBootstrapView: View {
 
     private let bootstrapService = BootstrapService()
     private let seedDataService = SeedDataService()
+    private let storageVersionService = StorageVersionService()
 
     var body: some View {
         Group {
@@ -44,6 +45,7 @@ struct AppBootstrapView: View {
         do {
             try bootstrapService.bootstrapIfNeeded(context: modelContext)
             try seedDataService.seedIfNeeded(context: modelContext)
+            storageVersionService.recordCurrentVersionIfNeeded()
             isReady = true
         } catch {
             bootstrapError = error.localizedDescription

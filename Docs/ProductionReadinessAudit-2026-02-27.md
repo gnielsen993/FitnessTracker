@@ -34,7 +34,7 @@ The app is in a strong local-first position. Primary production gaps were around
 - Disabled styling uses theme tokens (`fillDisabled`, tertiary text).
 - File: `Sources/DesignKit/Components/DKButton.swift`
 
-## Remaining production checklist (next pass)
+## Remaining production checklist
 
 ### P0 / release blockers
 - Run full iOS build + device smoke tests in Xcode/TestFlight.
@@ -42,13 +42,17 @@ The app is in a strong local-first position. Primary production gaps were around
 - Add crash + diagnostic logging strategy.
 
 ### P1
-- Add explicit empty/loading/error states across more screens.
-- Add accessibility audit pass (Dynamic Type + VoiceOver labels).
+- Complete accessibility audit pass (Dynamic Type + VoiceOver labels) with on-device checks.
 - Add data backup restore conflict behavior (duplicate session IDs, merges).
 
 ### P2
 - Add optional CloudKit sync design doc and migration path (local-first remains default).
 - Expand DesignKit component states (pressed/focus/loading variants).
+
+## Pass 2 updates applied
+- Added empty-state UX to Home chart, Progress charts, and Insights.
+- Added basic accessibility label coverage for key navigation action (Insights button).
+- Added local storage schema version service and surfaced storage mode/version in Settings.
 
 ## Local-first vs CloudKit recommendation
 - Keep local-first for initial production ship.
