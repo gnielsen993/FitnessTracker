@@ -38,7 +38,8 @@ struct InsightsView: View {
                         }
                     }
                 }
-                .padding(theme.spacing.l)
+                .padding(.vertical, theme.spacing.l)
+                .padding(.horizontal, theme.spacing.s)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .background(theme.colors.background.ignoresSafeArea())
