@@ -22,12 +22,49 @@ struct ProgressView: View {
         }
     }
 
+    enum MainLift: String, CaseIterable, Identifiable {
+        case bench = "Bench"
+        case squat = "Squat"
+        case deadlift = "Deadlift"
+
+        var id: String { rawValue }
+
+        var aliases: [String] {
+            switch self {
+            case .bench:
+                return ["bench", "barbell bench press", "bench press"]
+            case .squat:
+                return ["squat", "back squat", "front squat"]
+            case .deadlift:
+                return ["deadlift", "romanian deadlift", "conventional deadlift"]
+            }
+        }
+    }
+
+    enum CountdownPreset: String, CaseIterable, Identifiable {
+        case oneMonth = "1 month"
+        case twoMonths = "2 months"
+        case threeMonths = "3 months"
+
+        var id: String { rawValue }
+
+        var days: Int {
+            switch self {
+            case .oneMonth: 30
+            case .twoMonths: 60
+            case .threeMonths: 90
+            }
+        }
+    }
+
     @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \WorkoutSession.startedAt) private var sessions: [WorkoutSession]
 
     @State private var selectedRange: Range = .threeMonths
     @State private var searchText = ""
+    @State private var selectedLift: MainLift = .bench
+    @State private var selectedCountdown: CountdownPreset = .oneMonth
 
     private var theme: Theme {
         themeManager.theme(for: colorScheme)
@@ -50,6 +87,43 @@ struct ProgressView: View {
         return sorted.filter { $0.lowercased().contains(query) }
     }
 
+    private var liftSeries: [(date: Date, value: Double)] {
+        filteredSessions.compactMap { session in
+            let sets = session.loggedExercises
+                .filter { logged in
+                    let name = logged.exercise?.name.lowercased() ?? ""
+                    return selectedLift.aliases.contains(where: { name.contains($0) })
+                }
+                .flatMap(\.sets)
+                .filter { !$0.isWarmup }
+
+            guard !sets.isEmpty else { return nil }
+            let peak = sets.map { StatsEngine.estimatedOneRepMax(weight: $0.weight, reps: $0.reps) }.max() ?? 0
+            return (date: session.startedAt, value: peak)
+        }
+    }
+
+    private var liftNow: Double {
+        liftSeries.last?.value ?? 0
+    }
+
+    private var liftStart: Double {
+        liftSeries.first?.value ?? 0
+    }
+
+    private var liftDeltaPercent: Double {
+        guard liftStart > 0 else { return 0 }
+        return ((liftNow - liftStart) / liftStart) * 100
+    }
+
+    private var targetDate: Date {
+        Calendar.current.date(byAdding: .day, value: selectedCountdown.days, to: .now) ?? .now
+    }
+
+    private var daysRemaining: Int {
+        max(0, Calendar.current.dateComponents([.day], from: .now, to: targetDate).day ?? 0)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -60,6 +134,8 @@ struct ProgressView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+
+                    oneRMHeaderCard
 
                     DKCard(theme: theme) {
                         VStack(alignment: .leading, spacing: theme.spacing.s) {
@@ -115,6 +191,70 @@ struct ProgressView: View {
             }
             .background(theme.colors.background.ignoresSafeArea())
             .navigationTitle("Progress")
+        }
+    }
+
+    private var oneRMHeaderCard: some View {
+        DKCard(theme: theme) {
+            VStack(alignment: .leading, spacing: theme.spacing.s) {
+                HStack {
+                    Text("1RM Focus")
+                        .font(theme.typography.headline)
+                        .foregroundStyle(theme.colors.textPrimary)
+                    Spacer()
+                    Text("\(daysRemaining)d left")
+                        .font(theme.typography.caption)
+                        .foregroundStyle(theme.colors.textSecondary)
+                }
+
+                HStack(spacing: theme.spacing.s) {
+                    Picker("Lift", selection: $selectedLift) {
+                        ForEach(MainLift.allCases) { lift in
+                            Text(lift.rawValue).tag(lift)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    Picker("Countdown", selection: $selectedCountdown) {
+                        ForEach(CountdownPreset.allCases) { preset in
+                            Text(preset.rawValue).tag(preset)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+
+                HStack {
+                    Text("Current est. 1RM: \(Int(liftNow))")
+                        .font(theme.typography.body)
+                        .foregroundStyle(theme.colors.textPrimary)
+                    Spacer()
+                    Text(String(format: "%+.1f%%", liftDeltaPercent))
+                        .font(theme.typography.body)
+                        .foregroundStyle(liftDeltaPercent >= 0 ? theme.colors.success : theme.colors.danger)
+                }
+
+                if liftSeries.isEmpty {
+                    Text("No \(selectedLift.rawValue.lowercased()) data yet in selected range.")
+                        .font(theme.typography.caption)
+                        .foregroundStyle(theme.colors.textSecondary)
+                } else {
+                    Chart(liftSeries, id: \.date) { point in
+                        LineMark(
+                            x: .value("Date", point.date),
+                            y: .value("e1RM", point.value)
+                        )
+                        .foregroundStyle(theme.charts.chart2)
+
+                        PointMark(
+                            x: .value("Date", point.date),
+                            y: .value("e1RM", point.value)
+                        )
+                        .foregroundStyle(theme.charts.chart2)
+                    }
+                    .dkChartStyle(theme: theme)
+                    .frame(height: 150)
+                }
+            }
         }
     }
 
