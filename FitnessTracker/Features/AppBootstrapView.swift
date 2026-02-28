@@ -30,7 +30,7 @@ struct AppBootstrapView: View {
                     .padding(.bottom, 48)
                 }
             } else {
-                ProgressView("Preparing local data…")
+                SwiftUI.ProgressView("Preparing local data…")
             }
         }
         .task(id: reloadToken) {
