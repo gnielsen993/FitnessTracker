@@ -18,24 +18,61 @@ final class SeedDataService {
         let payload = try decoder.decode(SeedExercisePayload.self, from: data)
 
         let groups = try context.fetch(FetchDescriptor<MuscleGroup>())
-        let groupIndex = Dictionary(uniqueKeysWithValues: groups.map { ($0.name.lowercased(), $0) })
-        var existingNames = Set(existing.map { $0.name.lowercased() })
+        let allRegions = groups.flatMap(\.regions)
+        let regionIndex = Dictionary(uniqueKeysWithValues: allRegions.map { ($0.name.lowercased(), $0) })
+
+        var exerciseIndex = Dictionary(uniqueKeysWithValues: existing.map { ($0.name.lowercased(), $0) })
 
         for seed in payload.exercises {
             let normalizedName = seed.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            guard !existingNames.contains(normalizedName) else { continue }
 
-            let exercise = Exercise(
-                name: seed.name,
-                category: seed.category,
-                equipment: seed.equipment
-            )
-            context.insert(exercise)
-            existingNames.insert(normalizedName)
+            let exercise: Exercise
+            if let existingExercise = exerciseIndex[normalizedName] {
+                exercise = existingExercise
+                exercise.category = seed.category
+                exercise.equipment = seed.equipment
+            } else {
+                let created = Exercise(name: seed.name, category: seed.category, equipment: seed.equipment)
+                context.insert(created)
+                exercise = created
+                exerciseIndex[normalizedName] = created
+            }
 
-            let key = seed.category.lowercased()
-            if let group = groupIndex[key] {
-                for region in group.regions {
+            // Replace broad/legacy mappings with curated table-driven mappings.
+            for map in exercise.muscleMaps {
+                context.delete(map)
+            }
+            exercise.muscleMaps.removeAll()
+
+            let primary = seed.primaryRegions ?? []
+            let secondary = seed.secondaryRegions ?? []
+
+            var inserted = false
+            for regionName in primary {
+                if let region = regionIndex[regionName.lowercased()] {
+                    let map = ExerciseMuscleMap(role: .primary, exercise: exercise, muscleRegion: region)
+                    context.insert(map)
+                    exercise.muscleMaps.append(map)
+                    inserted = true
+                }
+            }
+
+            for regionName in secondary {
+                if let region = regionIndex[regionName.lowercased()] {
+                    let map = ExerciseMuscleMap(role: .secondary, exercise: exercise, muscleRegion: region)
+                    context.insert(map)
+                    exercise.muscleMaps.append(map)
+                    inserted = true
+                }
+            }
+
+            // Safety fallback for seeds that somehow have no mappings.
+            if !inserted {
+                let fallbackRegions = groups
+                    .first(where: { $0.name.caseInsensitiveCompare(seed.category) == .orderedSame })?
+                    .regions ?? []
+
+                for region in fallbackRegions {
                     let map = ExerciseMuscleMap(role: .primary, exercise: exercise, muscleRegion: region)
                     context.insert(map)
                     exercise.muscleMaps.append(map)
@@ -56,4 +93,6 @@ struct SeedExercise: Codable {
     let name: String
     let category: String
     let equipment: String
+    let primaryRegions: [String]?
+    let secondaryRegions: [String]?
 }

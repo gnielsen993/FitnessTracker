@@ -1,72 +1,655 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "exercises": [
-    { "name": "Barbell Bench Press", "category": "Chest", "equipment": "Barbell" },
-    { "name": "Incline Dumbbell Press", "category": "Chest", "equipment": "Dumbbell" },
-    { "name": "Decline Bench Press", "category": "Chest", "equipment": "Barbell" },
-    { "name": "Machine Chest Press", "category": "Chest", "equipment": "Machine" },
-    { "name": "Cable Fly", "category": "Chest", "equipment": "Cable" },
-    { "name": "Dumbbell Fly", "category": "Chest", "equipment": "Dumbbell" },
-    { "name": "Push-Up", "category": "Chest", "equipment": "Bodyweight" },
-    { "name": "Weighted Dip", "category": "Chest", "equipment": "Bodyweight" },
-
-    { "name": "Overhead Press", "category": "Shoulders", "equipment": "Barbell" },
-    { "name": "Seated Dumbbell Shoulder Press", "category": "Shoulders", "equipment": "Dumbbell" },
-    { "name": "Arnold Press", "category": "Shoulders", "equipment": "Dumbbell" },
-    { "name": "Dumbbell Lateral Raise", "category": "Shoulders", "equipment": "Dumbbell" },
-    { "name": "Cable Lateral Raise", "category": "Shoulders", "equipment": "Cable" },
-    { "name": "Rear Delt Fly", "category": "Shoulders", "equipment": "Machine" },
-    { "name": "Face Pull", "category": "Shoulders", "equipment": "Cable" },
-
-    { "name": "Cable Triceps Pushdown", "category": "Triceps", "equipment": "Cable" },
-    { "name": "Overhead Cable Triceps Extension", "category": "Triceps", "equipment": "Cable" },
-    { "name": "Skull Crusher", "category": "Triceps", "equipment": "EZ Bar" },
-    { "name": "Close-Grip Bench Press", "category": "Triceps", "equipment": "Barbell" },
-    { "name": "Single-Arm Dumbbell Overhead Extension", "category": "Triceps", "equipment": "Dumbbell" },
-
-    { "name": "Barbell Row", "category": "Back", "equipment": "Barbell" },
-    { "name": "Chest Supported Row", "category": "Back", "equipment": "Machine" },
-    { "name": "Seated Cable Row", "category": "Back", "equipment": "Cable" },
-    { "name": "Lat Pulldown", "category": "Back", "equipment": "Cable" },
-    { "name": "Neutral Grip Pulldown", "category": "Back", "equipment": "Cable" },
-    { "name": "Pull-Up", "category": "Back", "equipment": "Bodyweight" },
-    { "name": "Chin-Up", "category": "Back", "equipment": "Bodyweight" },
-    { "name": "Single-Arm Dumbbell Row", "category": "Back", "equipment": "Dumbbell" },
-    { "name": "T-Bar Row", "category": "Back", "equipment": "Barbell" },
-    { "name": "Straight-Arm Pulldown", "category": "Back", "equipment": "Cable" },
-
-    { "name": "Barbell Curl", "category": "Biceps", "equipment": "Barbell" },
-    { "name": "EZ-Bar Curl", "category": "Biceps", "equipment": "EZ Bar" },
-    { "name": "Incline Dumbbell Curl", "category": "Biceps", "equipment": "Dumbbell" },
-    { "name": "Hammer Curl", "category": "Biceps", "equipment": "Dumbbell" },
-    { "name": "Cable Curl", "category": "Biceps", "equipment": "Cable" },
-    { "name": "Preacher Curl", "category": "Biceps", "equipment": "Machine" },
-    { "name": "Concentration Curl", "category": "Biceps", "equipment": "Dumbbell" },
-
-    { "name": "Back Squat", "category": "Legs", "equipment": "Barbell" },
-    { "name": "Front Squat", "category": "Legs", "equipment": "Barbell" },
-    { "name": "Romanian Deadlift", "category": "Legs", "equipment": "Barbell" },
-    { "name": "Conventional Deadlift", "category": "Legs", "equipment": "Barbell" },
-    { "name": "Leg Press", "category": "Legs", "equipment": "Machine" },
-    { "name": "Hack Squat", "category": "Legs", "equipment": "Machine" },
-    { "name": "Bulgarian Split Squat", "category": "Legs", "equipment": "Dumbbell" },
-    { "name": "Walking Lunge", "category": "Legs", "equipment": "Dumbbell" },
-    { "name": "Leg Extension", "category": "Legs", "equipment": "Machine" },
-    { "name": "Lying Leg Curl", "category": "Legs", "equipment": "Machine" },
-    { "name": "Seated Leg Curl", "category": "Legs", "equipment": "Machine" },
-    { "name": "Hip Thrust", "category": "Legs", "equipment": "Barbell" },
-    { "name": "Glute Bridge", "category": "Legs", "equipment": "Bodyweight" },
-    { "name": "Standing Calf Raise", "category": "Legs", "equipment": "Machine" },
-    { "name": "Seated Calf Raise", "category": "Legs", "equipment": "Machine" },
-
-    { "name": "Plank", "category": "Core", "equipment": "Bodyweight" },
-    { "name": "Side Plank", "category": "Core", "equipment": "Bodyweight" },
-    { "name": "Hanging Knee Raise", "category": "Core", "equipment": "Bodyweight" },
-    { "name": "Hanging Leg Raise", "category": "Core", "equipment": "Bodyweight" },
-    { "name": "Cable Crunch", "category": "Core", "equipment": "Cable" },
-    { "name": "Ab Wheel Rollout", "category": "Core", "equipment": "Bodyweight" },
-    { "name": "Russian Twist", "category": "Core", "equipment": "Bodyweight" },
-    { "name": "Dead Bug", "category": "Core", "equipment": "Bodyweight" },
-    { "name": "Bird Dog", "category": "Core", "equipment": "Bodyweight" }
+    {
+      "name": "Barbell Bench Press",
+      "category": "Chest",
+      "equipment": "Barbell",
+      "primaryRegions": [
+        "Mid"
+      ],
+      "secondaryRegions": [
+        "Anterior",
+        "Lateral"
+      ]
+    },
+    {
+      "name": "Incline Dumbbell Press",
+      "category": "Chest",
+      "equipment": "Dumbbell",
+      "primaryRegions": [
+        "Upper"
+      ],
+      "secondaryRegions": [
+        "Anterior"
+      ]
+    },
+    {
+      "name": "Decline Bench Press",
+      "category": "Chest",
+      "equipment": "Barbell",
+      "primaryRegions": [
+        "Lower"
+      ],
+      "secondaryRegions": [
+        "Lateral"
+      ]
+    },
+    {
+      "name": "Machine Chest Press",
+      "category": "Chest",
+      "equipment": "Machine",
+      "primaryRegions": [
+        "Mid"
+      ],
+      "secondaryRegions": [
+        "Anterior"
+      ]
+    },
+    {
+      "name": "Cable Fly",
+      "category": "Chest",
+      "equipment": "Cable",
+      "primaryRegions": [
+        "Mid"
+      ],
+      "secondaryRegions": [
+        "Anterior"
+      ]
+    },
+    {
+      "name": "Dumbbell Fly",
+      "category": "Chest",
+      "equipment": "Dumbbell",
+      "primaryRegions": [
+        "Mid"
+      ],
+      "secondaryRegions": [
+        "Anterior"
+      ]
+    },
+    {
+      "name": "Push-Up",
+      "category": "Chest",
+      "equipment": "Bodyweight",
+      "primaryRegions": [
+        "Mid"
+      ],
+      "secondaryRegions": [
+        "Anterior",
+        "Lateral"
+      ]
+    },
+    {
+      "name": "Weighted Dip",
+      "category": "Chest",
+      "equipment": "Bodyweight",
+      "primaryRegions": [
+        "Lower"
+      ],
+      "secondaryRegions": [
+        "Lateral",
+        "Medial"
+      ]
+    },
+    {
+      "name": "Overhead Press",
+      "category": "Shoulders",
+      "equipment": "Barbell",
+      "primaryRegions": [
+        "Anterior"
+      ],
+      "secondaryRegions": [
+        "Lateral"
+      ]
+    },
+    {
+      "name": "Seated Dumbbell Shoulder Press",
+      "category": "Shoulders",
+      "equipment": "Dumbbell",
+      "primaryRegions": [
+        "Anterior"
+      ],
+      "secondaryRegions": [
+        "Lateral"
+      ]
+    },
+    {
+      "name": "Arnold Press",
+      "category": "Shoulders",
+      "equipment": "Dumbbell",
+      "primaryRegions": [
+        "Anterior",
+        "Lateral"
+      ],
+      "secondaryRegions": [
+        "Long"
+      ]
+    },
+    {
+      "name": "Dumbbell Lateral Raise",
+      "category": "Shoulders",
+      "equipment": "Dumbbell",
+      "primaryRegions": [
+        "Lateral"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Cable Lateral Raise",
+      "category": "Shoulders",
+      "equipment": "Cable",
+      "primaryRegions": [
+        "Lateral"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Rear Delt Fly",
+      "category": "Shoulders",
+      "equipment": "Machine",
+      "primaryRegions": [
+        "Posterior"
+      ],
+      "secondaryRegions": [
+        "Upper Back"
+      ]
+    },
+    {
+      "name": "Face Pull",
+      "category": "Shoulders",
+      "equipment": "Cable",
+      "primaryRegions": [
+        "Posterior"
+      ],
+      "secondaryRegions": [
+        "Upper Back"
+      ]
+    },
+    {
+      "name": "Cable Triceps Pushdown",
+      "category": "Triceps",
+      "equipment": "Cable",
+      "primaryRegions": [
+        "Lateral",
+        "Medial"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Overhead Cable Triceps Extension",
+      "category": "Triceps",
+      "equipment": "Cable",
+      "primaryRegions": [
+        "Long"
+      ],
+      "secondaryRegions": [
+        "Medial"
+      ]
+    },
+    {
+      "name": "Skull Crusher",
+      "category": "Triceps",
+      "equipment": "EZ Bar",
+      "primaryRegions": [
+        "Long"
+      ],
+      "secondaryRegions": [
+        "Lateral"
+      ]
+    },
+    {
+      "name": "Close-Grip Bench Press",
+      "category": "Triceps",
+      "equipment": "Barbell",
+      "primaryRegions": [
+        "Medial",
+        "Lateral"
+      ],
+      "secondaryRegions": [
+        "Mid"
+      ]
+    },
+    {
+      "name": "Single-Arm Dumbbell Overhead Extension",
+      "category": "Triceps",
+      "equipment": "Dumbbell",
+      "primaryRegions": [
+        "Long"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Barbell Row",
+      "category": "Back",
+      "equipment": "Barbell",
+      "primaryRegions": [
+        "Upper Back",
+        "Lats"
+      ],
+      "secondaryRegions": [
+        "Posterior"
+      ]
+    },
+    {
+      "name": "Chest Supported Row",
+      "category": "Back",
+      "equipment": "Machine",
+      "primaryRegions": [
+        "Upper Back"
+      ],
+      "secondaryRegions": [
+        "Lats"
+      ]
+    },
+    {
+      "name": "Seated Cable Row",
+      "category": "Back",
+      "equipment": "Cable",
+      "primaryRegions": [
+        "Upper Back",
+        "Lats"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Lat Pulldown",
+      "category": "Back",
+      "equipment": "Cable",
+      "primaryRegions": [
+        "Lats"
+      ],
+      "secondaryRegions": [
+        "Brachialis"
+      ]
+    },
+    {
+      "name": "Neutral Grip Pulldown",
+      "category": "Back",
+      "equipment": "Cable",
+      "primaryRegions": [
+        "Lats"
+      ],
+      "secondaryRegions": [
+        "Brachialis"
+      ]
+    },
+    {
+      "name": "Pull-Up",
+      "category": "Back",
+      "equipment": "Bodyweight",
+      "primaryRegions": [
+        "Lats"
+      ],
+      "secondaryRegions": [
+        "Brachialis"
+      ]
+    },
+    {
+      "name": "Chin-Up",
+      "category": "Back",
+      "equipment": "Bodyweight",
+      "primaryRegions": [
+        "Lats"
+      ],
+      "secondaryRegions": [
+        "Long"
+      ]
+    },
+    {
+      "name": "Single-Arm Dumbbell Row",
+      "category": "Back",
+      "equipment": "Dumbbell",
+      "primaryRegions": [
+        "Lats",
+        "Upper Back"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "T-Bar Row",
+      "category": "Back",
+      "equipment": "Barbell",
+      "primaryRegions": [
+        "Upper Back",
+        "Lats"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Straight-Arm Pulldown",
+      "category": "Back",
+      "equipment": "Cable",
+      "primaryRegions": [
+        "Lats"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Barbell Curl",
+      "category": "Biceps",
+      "equipment": "Barbell",
+      "primaryRegions": [
+        "Long",
+        "Short"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "EZ-Bar Curl",
+      "category": "Biceps",
+      "equipment": "EZ Bar",
+      "primaryRegions": [
+        "Long",
+        "Short"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Incline Dumbbell Curl",
+      "category": "Biceps",
+      "equipment": "Dumbbell",
+      "primaryRegions": [
+        "Long"
+      ],
+      "secondaryRegions": [
+        "Short"
+      ]
+    },
+    {
+      "name": "Hammer Curl",
+      "category": "Biceps",
+      "equipment": "Dumbbell",
+      "primaryRegions": [
+        "Brachialis"
+      ],
+      "secondaryRegions": [
+        "Long"
+      ]
+    },
+    {
+      "name": "Cable Curl",
+      "category": "Biceps",
+      "equipment": "Cable",
+      "primaryRegions": [
+        "Short"
+      ],
+      "secondaryRegions": [
+        "Long"
+      ]
+    },
+    {
+      "name": "Preacher Curl",
+      "category": "Biceps",
+      "equipment": "Machine",
+      "primaryRegions": [
+        "Short"
+      ],
+      "secondaryRegions": [
+        "Brachialis"
+      ]
+    },
+    {
+      "name": "Concentration Curl",
+      "category": "Biceps",
+      "equipment": "Dumbbell",
+      "primaryRegions": [
+        "Short"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Back Squat",
+      "category": "Legs",
+      "equipment": "Barbell",
+      "primaryRegions": [
+        "Quads",
+        "Glutes"
+      ],
+      "secondaryRegions": [
+        "Hamstrings"
+      ]
+    },
+    {
+      "name": "Front Squat",
+      "category": "Legs",
+      "equipment": "Barbell",
+      "primaryRegions": [
+        "Quads"
+      ],
+      "secondaryRegions": [
+        "Glutes"
+      ]
+    },
+    {
+      "name": "Romanian Deadlift",
+      "category": "Legs",
+      "equipment": "Barbell",
+      "primaryRegions": [
+        "Hamstrings",
+        "Glutes"
+      ],
+      "secondaryRegions": [
+        "Lower Back"
+      ]
+    },
+    {
+      "name": "Conventional Deadlift",
+      "category": "Legs",
+      "equipment": "Barbell",
+      "primaryRegions": [
+        "Glutes",
+        "Hamstrings"
+      ],
+      "secondaryRegions": [
+        "Lower Back",
+        "Upper Back"
+      ]
+    },
+    {
+      "name": "Leg Press",
+      "category": "Legs",
+      "equipment": "Machine",
+      "primaryRegions": [
+        "Quads",
+        "Glutes"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Hack Squat",
+      "category": "Legs",
+      "equipment": "Machine",
+      "primaryRegions": [
+        "Quads"
+      ],
+      "secondaryRegions": [
+        "Glutes"
+      ]
+    },
+    {
+      "name": "Bulgarian Split Squat",
+      "category": "Legs",
+      "equipment": "Dumbbell",
+      "primaryRegions": [
+        "Quads",
+        "Glutes"
+      ],
+      "secondaryRegions": [
+        "Hamstrings"
+      ]
+    },
+    {
+      "name": "Walking Lunge",
+      "category": "Legs",
+      "equipment": "Dumbbell",
+      "primaryRegions": [
+        "Quads",
+        "Glutes"
+      ],
+      "secondaryRegions": [
+        "Hamstrings"
+      ]
+    },
+    {
+      "name": "Leg Extension",
+      "category": "Legs",
+      "equipment": "Machine",
+      "primaryRegions": [
+        "Quads"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Lying Leg Curl",
+      "category": "Legs",
+      "equipment": "Machine",
+      "primaryRegions": [
+        "Hamstrings"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Seated Leg Curl",
+      "category": "Legs",
+      "equipment": "Machine",
+      "primaryRegions": [
+        "Hamstrings"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Hip Thrust",
+      "category": "Legs",
+      "equipment": "Barbell",
+      "primaryRegions": [
+        "Glutes"
+      ],
+      "secondaryRegions": [
+        "Hamstrings"
+      ]
+    },
+    {
+      "name": "Glute Bridge",
+      "category": "Legs",
+      "equipment": "Bodyweight",
+      "primaryRegions": [
+        "Glutes"
+      ],
+      "secondaryRegions": [
+        "Hamstrings"
+      ]
+    },
+    {
+      "name": "Standing Calf Raise",
+      "category": "Legs",
+      "equipment": "Machine",
+      "primaryRegions": [
+        "Calves"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Seated Calf Raise",
+      "category": "Legs",
+      "equipment": "Machine",
+      "primaryRegions": [
+        "Calves"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Plank",
+      "category": "Core",
+      "equipment": "Bodyweight",
+      "primaryRegions": [
+        "Upper Abs",
+        "Lower Abs"
+      ],
+      "secondaryRegions": [
+        "Obliques"
+      ]
+    },
+    {
+      "name": "Side Plank",
+      "category": "Core",
+      "equipment": "Bodyweight",
+      "primaryRegions": [
+        "Obliques"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Hanging Knee Raise",
+      "category": "Core",
+      "equipment": "Bodyweight",
+      "primaryRegions": [
+        "Lower Abs"
+      ],
+      "secondaryRegions": [
+        "Upper Abs"
+      ]
+    },
+    {
+      "name": "Hanging Leg Raise",
+      "category": "Core",
+      "equipment": "Bodyweight",
+      "primaryRegions": [
+        "Lower Abs"
+      ],
+      "secondaryRegions": [
+        "Upper Abs"
+      ]
+    },
+    {
+      "name": "Cable Crunch",
+      "category": "Core",
+      "equipment": "Cable",
+      "primaryRegions": [
+        "Upper Abs"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Ab Wheel Rollout",
+      "category": "Core",
+      "equipment": "Bodyweight",
+      "primaryRegions": [
+        "Upper Abs",
+        "Lower Abs"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Russian Twist",
+      "category": "Core",
+      "equipment": "Bodyweight",
+      "primaryRegions": [
+        "Obliques"
+      ],
+      "secondaryRegions": [
+        "Upper Abs"
+      ]
+    },
+    {
+      "name": "Dead Bug",
+      "category": "Core",
+      "equipment": "Bodyweight",
+      "primaryRegions": [
+        "Upper Abs",
+        "Lower Abs"
+      ],
+      "secondaryRegions": []
+    },
+    {
+      "name": "Bird Dog",
+      "category": "Core",
+      "equipment": "Bodyweight",
+      "primaryRegions": [
+        "Lower Back",
+        "Obliques"
+      ],
+      "secondaryRegions": []
+    }
   ]
 }
