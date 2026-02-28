@@ -12,7 +12,7 @@ struct SettingsView: View {
     @Query(sort: \WorkoutType.name) private var workoutTypes: [WorkoutType]
     @Query(sort: \Exercise.name) private var exercises: [Exercise]
 
-    @AppStorage("train.rest.seconds") private var restDurationSeconds: Double = 90
+    @State private var restDurationSeconds: Double = RestTimerSettings.load()
 
     @State private var exportDocument: BackupJSONDocument?
     @State private var showingExporter = false
@@ -118,6 +118,12 @@ struct SettingsView: View {
             }
             .background(theme.colors.background.ignoresSafeArea())
             .navigationTitle("Settings")
+            .onAppear {
+                restDurationSeconds = RestTimerSettings.load()
+            }
+            .onChange(of: restDurationSeconds) { _, newValue in
+                RestTimerSettings.save(newValue)
+            }
             .fileExporter(
                 isPresented: $showingExporter,
                 document: exportDocument,

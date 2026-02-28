@@ -7,7 +7,7 @@ struct TrainView: View {
     @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.colorScheme) private var colorScheme
 
-    @AppStorage("train.rest.seconds") private var restDurationSeconds: Double = 90
+    @State private var restDurationSeconds: Double = RestTimerSettings.load()
 
     @Query(sort: \WorkoutType.name) private var workoutTypes: [WorkoutType]
     @Query(sort: \Exercise.name) private var exercises: [Exercise]
@@ -136,6 +136,9 @@ struct TrainView: View {
                 if let target = setEditorTarget {
                     setEditorSheet(for: target)
                 }
+            }
+            .onAppear {
+                restDurationSeconds = RestTimerSettings.load()
             }
             .onDisappear {
                 stopRestTimer()
