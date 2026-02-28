@@ -179,7 +179,16 @@ struct ProgressView: View {
                                     .foregroundStyle(theme.colors.textSecondary)
                             } else {
                                 ForEach(exerciseNames.prefix(8), id: \.self) { name in
-                                    exerciseTrendCard(for: name)
+                                    NavigationLink {
+                                        WorkoutTrendDetailView(
+                                            exerciseName: name,
+                                            progression: progressionSeries(for: name),
+                                            theme: theme
+                                        )
+                                    } label: {
+                                        exerciseTrendCard(for: name)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }
@@ -273,6 +282,9 @@ struct ProgressView: View {
                             .font(theme.typography.caption)
                             .foregroundStyle(theme.colors.textSecondary)
                     }
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(theme.colors.textTertiary)
                 }
 
                 if progression.isEmpty {
@@ -311,5 +323,84 @@ struct ProgressView: View {
             let peak = sets.map { StatsEngine.estimatedOneRepMax(weight: $0.weight, reps: $0.reps) }.max() ?? 0
             return (date: session.startedAt, value: peak)
         }
+    }
+}
+
+private struct WorkoutTrendDetailView: View {
+    let exerciseName: String
+    let progression: [(date: Date, value: Double)]
+    let theme: Theme
+
+    private var best: Double { progression.map(\.value).max() ?? 0 }
+    private var latest: Double { progression.last?.value ?? 0 }
+    private var deltaPercent: Double {
+        guard let first = progression.first?.value, first > 0 else { return 0 }
+        return ((latest - first) / first) * 100
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: theme.spacing.l) {
+                DKCard(theme: theme) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: theme.spacing.xs) {
+                            Text("Latest e1RM")
+                                .font(theme.typography.caption)
+                                .foregroundStyle(theme.colors.textSecondary)
+                            Text("\(Int(latest))")
+                                .font(theme.typography.titleLarge)
+                                .foregroundStyle(theme.colors.textPrimary)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: theme.spacing.xs) {
+                            Text("Best")
+                                .font(theme.typography.caption)
+                                .foregroundStyle(theme.colors.textSecondary)
+                            Text("\(Int(best))")
+                                .font(theme.typography.title)
+                                .foregroundStyle(theme.colors.textPrimary)
+                            Text(String(format: "%+.1f%%", deltaPercent))
+                                .font(theme.typography.caption)
+                                .foregroundStyle(deltaPercent >= 0 ? theme.colors.success : theme.colors.danger)
+                        }
+                    }
+                }
+
+                DKCard(theme: theme) {
+                    VStack(alignment: .leading, spacing: theme.spacing.s) {
+                        Text("Progress Over Time")
+                            .font(theme.typography.headline)
+                            .foregroundStyle(theme.colors.textPrimary)
+
+                        if progression.isEmpty {
+                            Text("No data yet for this workout.")
+                                .font(theme.typography.body)
+                                .foregroundStyle(theme.colors.textSecondary)
+                        } else {
+                            Chart(progression, id: \.date) { point in
+                                LineMark(
+                                    x: .value("Date", point.date),
+                                    y: .value("e1RM", point.value)
+                                )
+                                .foregroundStyle(theme.charts.chart2)
+
+                                PointMark(
+                                    x: .value("Date", point.date),
+                                    y: .value("e1RM", point.value)
+                                )
+                                .foregroundStyle(theme.charts.chart2)
+                            }
+                            .dkChartStyle(theme: theme)
+                            .frame(height: 220)
+                        }
+                    }
+                }
+            }
+            .padding(.vertical, theme.spacing.l)
+            .padding(.horizontal, theme.spacing.s)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(theme.colors.background.ignoresSafeArea())
+        .navigationTitle(exerciseName)
     }
 }
