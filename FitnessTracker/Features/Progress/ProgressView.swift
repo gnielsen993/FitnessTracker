@@ -26,7 +26,8 @@ struct ProgressView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \WorkoutSession.startedAt) private var sessions: [WorkoutSession]
 
-    @State private var selectedRange: Range = .oneMonth
+    @State private var selectedRange: Range = .threeMonths
+    @State private var searchText = ""
 
     private var theme: Theme {
         themeManager.theme(for: colorScheme)
@@ -41,8 +42,12 @@ struct ProgressView: View {
         filteredSessions.map { ($0.startedAt, StatsEngine.totalSessionVolume($0)) }
     }
 
-    private var sessionCountSeries: [(date: Date, value: Int)] {
-        filteredSessions.map { ($0.startedAt, 1) }
+    private var exerciseNames: [String] {
+        let all = Set(filteredSessions.flatMap { $0.loggedExercises.compactMap { $0.exercise?.name } })
+        let sorted = all.sorted()
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return sorted }
+        return sorted.filter { $0.lowercased().contains(query) }
     }
 
     var body: some View {
@@ -58,7 +63,7 @@ struct ProgressView: View {
 
                     DKCard(theme: theme) {
                         VStack(alignment: .leading, spacing: theme.spacing.s) {
-                            Text("Session Volume")
+                            Text("Overall Volume")
                                 .font(theme.typography.headline)
                                 .foregroundStyle(theme.colors.textPrimary)
 
@@ -68,7 +73,7 @@ struct ProgressView: View {
                                     systemImage: "chart.xyaxis.line",
                                     description: Text("Complete workouts to see your trend over time.")
                                 )
-                                .frame(height: 220)
+                                .frame(height: 180)
                             } else {
                                 Chart(volumeSeries, id: \.date) { item in
                                     LineMark(
@@ -78,34 +83,28 @@ struct ProgressView: View {
                                     .foregroundStyle(theme.charts.chart1)
                                 }
                                 .dkChartStyle(theme: theme)
-                                .frame(height: 220)
+                                .frame(height: 180)
                             }
                         }
                     }
 
                     DKCard(theme: theme) {
                         VStack(alignment: .leading, spacing: theme.spacing.s) {
-                            Text("Session Frequency")
+                            Text("Exercise Trends")
                                 .font(theme.typography.headline)
                                 .foregroundStyle(theme.colors.textPrimary)
 
-                            if sessionCountSeries.isEmpty {
-                                ContentUnavailableView(
-                                    "No frequency data",
-                                    systemImage: "calendar",
-                                    description: Text("Session bars appear once you log workouts.")
-                                )
-                                .frame(height: 170)
+                            TextField("Search workout (e.g. Barbell Row)", text: $searchText)
+                                .textFieldStyle(.roundedBorder)
+
+                            if exerciseNames.isEmpty {
+                                Text("No matching workouts in this date range.")
+                                    .font(theme.typography.body)
+                                    .foregroundStyle(theme.colors.textSecondary)
                             } else {
-                                Chart(sessionCountSeries, id: \.date) { item in
-                                    BarMark(
-                                        x: .value("Date", item.date),
-                                        y: .value("Sessions", item.value)
-                                    )
-                                    .foregroundStyle(theme.charts.chart3)
+                                ForEach(exerciseNames.prefix(8), id: \.self) { name in
+                                    exerciseTrendCard(for: name)
                                 }
-                                .dkChartStyle(theme: theme)
-                                .frame(height: 170)
                             }
                         }
                     }
@@ -116,6 +115,61 @@ struct ProgressView: View {
             }
             .background(theme.colors.background.ignoresSafeArea())
             .navigationTitle("Progress")
+        }
+    }
+
+    private func exerciseTrendCard(for exerciseName: String) -> some View {
+        let progression = progressionSeries(for: exerciseName)
+
+        return DKCard(theme: theme) {
+            VStack(alignment: .leading, spacing: theme.spacing.s) {
+                HStack {
+                    Text(exerciseName)
+                        .font(theme.typography.headline)
+                        .foregroundStyle(theme.colors.textPrimary)
+                    Spacer()
+                    if let latest = progression.last?.value {
+                        Text("Top e1RM \(Int(latest))")
+                            .font(theme.typography.caption)
+                            .foregroundStyle(theme.colors.textSecondary)
+                    }
+                }
+
+                if progression.isEmpty {
+                    Text("No logged sets yet.")
+                        .font(theme.typography.caption)
+                        .foregroundStyle(theme.colors.textSecondary)
+                } else {
+                    Chart(progression, id: \.date) { point in
+                        LineMark(
+                            x: .value("Date", point.date),
+                            y: .value("e1RM", point.value)
+                        )
+                        .foregroundStyle(theme.charts.chart2)
+
+                        PointMark(
+                            x: .value("Date", point.date),
+                            y: .value("e1RM", point.value)
+                        )
+                        .foregroundStyle(theme.charts.chart2)
+                    }
+                    .dkChartStyle(theme: theme)
+                    .frame(height: 140)
+                }
+            }
+        }
+    }
+
+    private func progressionSeries(for exerciseName: String) -> [(date: Date, value: Double)] {
+        filteredSessions.compactMap { session in
+            let sets = session.loggedExercises
+                .filter { $0.exercise?.name == exerciseName }
+                .flatMap(\.sets)
+                .filter { !$0.isWarmup }
+
+            guard !sets.isEmpty else { return nil }
+            let peak = sets.map { StatsEngine.estimatedOneRepMax(weight: $0.weight, reps: $0.reps) }.max() ?? 0
+            return (date: session.startedAt, value: peak)
         }
     }
 }

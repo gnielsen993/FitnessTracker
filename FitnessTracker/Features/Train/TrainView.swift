@@ -17,6 +17,7 @@ struct TrainView: View {
     @State private var showingCoverageDetails = false
     @State private var setEditorTarget: LoggedExercise?
     @State private var exerciseSearchText = ""
+    @State private var expandedExerciseCategories: Set<String> = []
     @State private var setReps = "10"
     @State private var setWeight = "45"
     @State private var setIsWarmup = false
@@ -239,22 +240,45 @@ struct TrainView: View {
                     )
                 } else {
                     ForEach(groupedFilteredExercises, id: \.category) { group in
-                        Section(group.category) {
-                            ForEach(group.items) { exercise in
-                                Button {
-                                    do {
-                                        try viewModel.addExercise(exercise, context: modelContext)
-                                        showingExercisePicker = false
-                                    } catch {
-                                        errorMessage = error.localizedDescription
+                        Section {
+                            DisclosureGroup(
+                                isExpanded: Binding(
+                                    get: {
+                                        !exerciseSearchText.isEmpty || expandedExerciseCategories.contains(group.category)
+                                    },
+                                    set: { isExpanded in
+                                        if isExpanded {
+                                            expandedExerciseCategories.insert(group.category)
+                                        } else {
+                                            expandedExerciseCategories.remove(group.category)
+                                        }
                                     }
-                                } label: {
-                                    VStack(alignment: .leading) {
-                                        Text(exercise.name)
-                                        Text("\(exercise.category) • \(exercise.equipment)")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+                                )
+                            ) {
+                                ForEach(group.items) { exercise in
+                                    Button {
+                                        do {
+                                            try viewModel.addExercise(exercise, context: modelContext)
+                                            showingExercisePicker = false
+                                        } catch {
+                                            errorMessage = error.localizedDescription
+                                        }
+                                    } label: {
+                                        VStack(alignment: .leading) {
+                                            Text(exercise.name)
+                                            Text("\(exercise.equipment)")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
                                     }
+                                }
+                            } label: {
+                                HStack {
+                                    Text(group.category)
+                                    Spacer()
+                                    Text("\(group.items.count)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                         }

@@ -17,25 +17,18 @@ struct HomeView: View {
 
     private var weekly: WeeklyConsistencySummary { viewModel.weeklyConsistency(from: sessions) }
     private var todayVolume: Int { Int(viewModel.todayVolume(from: sessions)) }
-    private var strengthSeries: [(date: Date, value: Double)] { viewModel.strengthTrend(from: sessions) }
     private var volumeSeries: [(Date, Double)] { sessions.prefix(8).map { ($0.startedAt, StatsEngine.totalSessionVolume($0)) }.reversed() }
     private var consistency: [Bool] { viewModel.consistencyLast7Days(from: sessions) }
-    private var strengthDelta: Double { viewModel.strengthDeltaThisWeek(from: sessions) }
+    private var sessionsLast7Days: Int { consistency.filter { $0 }.count }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: theme.spacing.l) {
                     header
-
                     topStats
-
-                    strengthCard
-
                     volumeCard
-
                     consistencyCard
-
                     splitBalanceCard
 
                     DKButton("View Insights", style: .secondary, theme: theme) {
@@ -73,7 +66,7 @@ struct HomeView: View {
         HStack(spacing: theme.spacing.s) {
             metricTile(title: "Weekly", value: "\(weekly.completed)/\(weekly.target)", subtitle: "sessions")
             metricTile(title: "Volume", value: "\(todayVolume)", subtitle: "today")
-            metricTile(title: "Strength", value: formattedDelta(strengthDelta), subtitle: "7d")
+            metricTile(title: "Active Days", value: "\(sessionsLast7Days)/7", subtitle: "this week")
         }
     }
 
@@ -93,36 +86,6 @@ struct HomeView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity)
-    }
-
-    private var strengthCard: some View {
-        DKCard(theme: theme) {
-            VStack(alignment: .leading, spacing: theme.spacing.s) {
-                HStack {
-                    Text("Strength Trend")
-                        .font(theme.typography.headline)
-                        .foregroundStyle(theme.colors.textPrimary)
-                    Spacer()
-                    Text(formattedDelta(strengthDelta))
-                        .font(theme.typography.body)
-                        .foregroundStyle(strengthDelta >= 0 ? theme.colors.success : theme.colors.danger)
-                }
-
-                if strengthSeries.isEmpty {
-                    ContentUnavailableView("No strength data", systemImage: "chart.line.uptrend.xyaxis", description: Text("Log weighted sets to chart progress."))
-                        .frame(height: 160)
-                } else {
-                    Chart(strengthSeries, id: \.date) { item in
-                        LineMark(x: .value("Date", item.date), y: .value("e1RM", item.value))
-                            .foregroundStyle(theme.charts.chart1)
-                        AreaMark(x: .value("Date", item.date), y: .value("e1RM", item.value))
-                            .foregroundStyle(theme.charts.chart1.opacity(0.15))
-                    }
-                    .dkChartStyle(theme: theme)
-                    .frame(height: 160)
-                }
-            }
-        }
     }
 
     private var volumeCard: some View {
@@ -195,10 +158,5 @@ struct HomeView: View {
                 }
             }
         }
-    }
-
-    private func formattedDelta(_ delta: Double) -> String {
-        let sign = delta >= 0 ? "+" : ""
-        return "\(sign)\(Int(delta.rounded()))%"
     }
 }
