@@ -14,6 +14,7 @@ struct TrainView: View {
     @State private var showingExercisePicker = false
     @State private var showingCoverageDetails = false
     @State private var setEditorTarget: LoggedExercise?
+    @State private var exerciseSearchText = ""
     @State private var setReps = "10"
     @State private var setWeight = "45"
     @State private var setIsWarmup = false
@@ -164,9 +165,20 @@ struct TrainView: View {
         }
     }
 
+    private var filteredExercises: [Exercise] {
+        let query = exerciseSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return exercises }
+
+        return exercises.filter { exercise in
+            exercise.name.lowercased().contains(query)
+            || exercise.category.lowercased().contains(query)
+            || exercise.equipment.lowercased().contains(query)
+        }
+    }
+
     private var exercisePickerSheet: some View {
         NavigationStack {
-            List(exercises) { exercise in
+            List(filteredExercises) { exercise in
                 Button {
                     do {
                         try viewModel.addExercise(exercise, context: modelContext)
@@ -183,6 +195,7 @@ struct TrainView: View {
                     }
                 }
             }
+            .searchable(text: $exerciseSearchText, prompt: "Search exercises")
             .navigationTitle("Add Exercise")
             .toolbar {
                 ToolbarItem(placement: .automatic) {
