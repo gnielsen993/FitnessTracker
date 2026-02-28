@@ -15,28 +15,12 @@ struct HomeView: View {
         themeManager.theme(for: colorScheme)
     }
 
-    private var weekly: WeeklyConsistencySummary {
-        viewModel.weeklyConsistency(from: sessions)
-    }
-
-    private var todayVolume: Int {
-        Int(viewModel.todayVolume(from: sessions))
-    }
-
-    private var recentSeries: [(Date, Double)] {
-        sessions.prefix(8).map { ($0.startedAt, StatsEngine.totalSessionVolume($0)) }.reversed()
-    }
-
-    private var streakDays: Int {
-        var streak = 0
-        let cal = Calendar.current
-        for offset in 0..<30 {
-            guard let day = cal.date(byAdding: .day, value: -offset, to: .now) else { break }
-            let hasSession = sessions.contains { cal.isDate($0.startedAt, inSameDayAs: day) }
-            if hasSession { streak += 1 } else if offset > 0 { break }
-        }
-        return streak
-    }
+    private var weekly: WeeklyConsistencySummary { viewModel.weeklyConsistency(from: sessions) }
+    private var todayVolume: Int { Int(viewModel.todayVolume(from: sessions)) }
+    private var strengthSeries: [(date: Date, value: Double)] { viewModel.strengthTrend(from: sessions) }
+    private var volumeSeries: [(Date, Double)] { sessions.prefix(8).map { ($0.startedAt, StatsEngine.totalSessionVolume($0)) }.reversed() }
+    private var consistency: [Bool] { viewModel.consistencyLast7Days(from: sessions) }
+    private var strengthDelta: Double { viewModel.strengthDeltaThisWeek(from: sessions) }
 
     var body: some View {
         NavigationStack {
@@ -44,25 +28,26 @@ struct HomeView: View {
                 VStack(alignment: .leading, spacing: theme.spacing.l) {
                     header
 
-                    summaryHero
+                    topStats
 
-                    metricGrid
+                    strengthCard
 
-                    trendCard
+                    volumeCard
+
+                    consistencyCard
 
                     splitBalanceCard
 
                     DKButton("View Insights", style: .secondary, theme: theme) {
                         showingInsights = true
                     }
-                    .accessibilityLabel("Open training insights")
                 }
                 .padding(.vertical, theme.spacing.l)
                 .padding(.horizontal, theme.spacing.s)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .background(theme.colors.background.ignoresSafeArea())
-            .navigationTitle("Summary")
+            .navigationTitle("Home")
             .sheet(isPresented: $showingInsights) {
                 InsightsView(tips: viewModel.tips(from: sessions))
                     .environmentObject(themeManager)
@@ -75,104 +60,110 @@ struct HomeView: View {
             Text(Date.now.formatted(date: .abbreviated, time: .omitted))
                 .font(theme.typography.caption)
                 .foregroundStyle(theme.colors.textSecondary)
-
-            Text("Today")
+            Text("Performance Lab")
                 .font(theme.typography.titleLarge)
                 .foregroundStyle(theme.colors.textPrimary)
+            Text("Train with data, not vibes.")
+                .font(theme.typography.body)
+                .foregroundStyle(theme.colors.textSecondary)
         }
     }
 
-    private var summaryHero: some View {
-        DKCard(theme: theme) {
-            HStack(spacing: theme.spacing.l) {
-                DKProgressRing(
-                    progress: weekly.progress,
-                    lineWidth: 14,
-                    label: "Weekly",
-                    theme: theme
-                )
-                .frame(width: 140, height: 140)
-
-                VStack(alignment: .leading, spacing: theme.spacing.s) {
-                    Text("Move")
-                        .font(theme.typography.caption)
-                        .foregroundStyle(theme.colors.textSecondary)
-
-                    Text("\(weekly.completed)/\(weekly.target)")
-                        .font(theme.typography.titleLarge)
-                        .foregroundStyle(theme.colors.textPrimary)
-
-                    Text("sessions this week")
-                        .font(theme.typography.body)
-                        .foregroundStyle(theme.colors.textSecondary)
-
-                    DKBadge("Volume \(todayVolume)", theme: theme)
-                }
-                Spacer()
-            }
+    private var topStats: some View {
+        HStack(spacing: theme.spacing.s) {
+            metricTile(title: "Weekly", value: "\(weekly.completed)/\(weekly.target)", subtitle: "sessions")
+            metricTile(title: "Volume", value: "\(todayVolume)", subtitle: "today")
+            metricTile(title: "Strength", value: formattedDelta(strengthDelta), subtitle: "7d")
         }
     }
 
-    private var metricGrid: some View {
-        VStack(spacing: theme.spacing.s) {
-            HStack(spacing: theme.spacing.s) {
-                metricTile(title: "Today Volume", value: "\(todayVolume)")
-                metricTile(title: "Streak", value: "\(streakDays) days")
-            }
-
-            HStack(spacing: theme.spacing.s) {
-                metricTile(title: "Sessions", value: "\(sessions.count)")
-                metricTile(title: "Weekly Goal", value: "\(Int(weekly.progress * 100))%")
-            }
-        }
-    }
-
-    private func metricTile(title: String, value: String) -> some View {
+    private func metricTile(title: String, value: String, subtitle: String) -> some View {
         DKCard(theme: theme) {
             VStack(alignment: .leading, spacing: theme.spacing.xs) {
                 Text(title)
                     .font(theme.typography.caption)
                     .foregroundStyle(theme.colors.textSecondary)
-
                 Text(value)
-                    .font(theme.typography.title)
+                    .font(theme.typography.headline)
                     .foregroundStyle(theme.colors.textPrimary)
+                Text(subtitle)
+                    .font(theme.typography.caption)
+                    .foregroundStyle(theme.colors.textTertiary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity)
     }
 
-    private var trendCard: some View {
+    private var strengthCard: some View {
+        DKCard(theme: theme) {
+            VStack(alignment: .leading, spacing: theme.spacing.s) {
+                HStack {
+                    Text("Strength Trend")
+                        .font(theme.typography.headline)
+                        .foregroundStyle(theme.colors.textPrimary)
+                    Spacer()
+                    Text(formattedDelta(strengthDelta))
+                        .font(theme.typography.body)
+                        .foregroundStyle(strengthDelta >= 0 ? theme.colors.success : theme.colors.danger)
+                }
+
+                if strengthSeries.isEmpty {
+                    ContentUnavailableView("No strength data", systemImage: "chart.line.uptrend.xyaxis", description: Text("Log weighted sets to chart progress."))
+                        .frame(height: 160)
+                } else {
+                    Chart(strengthSeries, id: \.date) { item in
+                        LineMark(x: .value("Date", item.date), y: .value("e1RM", item.value))
+                            .foregroundStyle(theme.charts.chart1)
+                        AreaMark(x: .value("Date", item.date), y: .value("e1RM", item.value))
+                            .foregroundStyle(theme.charts.chart1.opacity(0.15))
+                    }
+                    .dkChartStyle(theme: theme)
+                    .frame(height: 160)
+                }
+            }
+        }
+    }
+
+    private var volumeCard: some View {
         DKCard(theme: theme) {
             VStack(alignment: .leading, spacing: theme.spacing.s) {
                 Text("Volume Trend")
                     .font(theme.typography.headline)
                     .foregroundStyle(theme.colors.textPrimary)
 
-                if recentSeries.isEmpty {
-                    ContentUnavailableView(
-                        "No sessions yet",
-                        systemImage: "chart.line.uptrend.xyaxis",
-                        description: Text("Log your first workout to unlock trend charts.")
-                    )
-                    .frame(height: 170)
+                if volumeSeries.isEmpty {
+                    ContentUnavailableView("No volume data", systemImage: "waveform.path.ecg", description: Text("Finish sessions to visualize workload."))
+                        .frame(height: 140)
                 } else {
-                    Chart(recentSeries, id: \.0) { item in
-                        AreaMark(
-                            x: .value("Date", item.0),
-                            y: .value("Volume", item.1)
-                        )
-                        .foregroundStyle(theme.charts.chart2.opacity(0.18))
-
-                        LineMark(
-                            x: .value("Date", item.0),
-                            y: .value("Volume", item.1)
-                        )
-                        .foregroundStyle(theme.charts.chart1)
+                    Chart(volumeSeries, id: \.0) { item in
+                        BarMark(x: .value("Date", item.0), y: .value("Volume", item.1))
+                            .foregroundStyle(theme.charts.chart3)
                     }
                     .dkChartStyle(theme: theme)
-                    .frame(height: 170)
+                    .frame(height: 140)
+                }
+            }
+        }
+    }
+
+    private var consistencyCard: some View {
+        DKCard(theme: theme) {
+            VStack(alignment: .leading, spacing: theme.spacing.s) {
+                Text("7-Day Consistency")
+                    .font(theme.typography.headline)
+                    .foregroundStyle(theme.colors.textPrimary)
+
+                HStack(spacing: theme.spacing.xs) {
+                    ForEach(Array(consistency.enumerated()), id: \.offset) { _, hit in
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(hit ? theme.colors.accentPrimary : theme.colors.surfaceElevated)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .stroke(theme.colors.border, lineWidth: 1)
+                            }
+                            .frame(height: 14)
+                    }
                 }
             }
         }
@@ -204,5 +195,10 @@ struct HomeView: View {
                 }
             }
         }
+    }
+
+    private func formattedDelta(_ delta: Double) -> String {
+        let sign = delta >= 0 ? "+" : ""
+        return "\(sign)\(Int(delta.rounded()))%"
     }
 }
