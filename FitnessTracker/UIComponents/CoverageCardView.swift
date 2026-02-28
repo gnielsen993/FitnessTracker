@@ -31,7 +31,7 @@ struct CoverageCardView: View {
                         Text(group.name)
                             .foregroundStyle(theme.colors.textPrimary)
                         Spacer()
-                        Text("\(group.touchedRegions)/\(group.totalRegions)")
+                        Text("\(Int(group.progress * 100))%")
                             .foregroundStyle(theme.colors.textSecondary)
                     }
                     .font(theme.typography.body)
@@ -41,7 +41,6 @@ struct CoverageCardView: View {
     }
 
     private func progressValue(for group: GroupCoverage) -> Double {
-        guard group.totalRegions > 0 else { return 0 }
-        return Double(group.touchedRegions) / Double(group.totalRegions)
+        group.progress
     }
 }
