@@ -12,6 +12,8 @@ struct SettingsView: View {
     @Query(sort: \WorkoutType.name) private var workoutTypes: [WorkoutType]
     @Query(sort: \Exercise.name) private var exercises: [Exercise]
 
+    @AppStorage("train.rest.seconds") private var restDurationSeconds: Double = 90
+
     @State private var exportDocument: BackupJSONDocument?
     @State private var showingExporter = false
     @State private var showingImporter = false
@@ -47,6 +49,24 @@ struct SettingsView: View {
                                 }
                             }
                             .pickerStyle(.menu)
+
+                            Divider()
+
+                            Text("Rest Timer")
+                                .font(theme.typography.headline)
+                                .foregroundStyle(theme.colors.textPrimary)
+
+                            HStack {
+                                Text("Default rest")
+                                    .font(theme.typography.body)
+                                    .foregroundStyle(theme.colors.textSecondary)
+                                Spacer()
+                                Text("\(Int(restDurationSeconds))s")
+                                    .font(theme.typography.body)
+                                    .foregroundStyle(theme.colors.textPrimary)
+                            }
+
+                            Slider(value: $restDurationSeconds, in: 30...300, step: 15)
                         }
                     }
 

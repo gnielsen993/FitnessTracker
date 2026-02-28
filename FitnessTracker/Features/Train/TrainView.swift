@@ -7,6 +7,8 @@ struct TrainView: View {
     @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.colorScheme) private var colorScheme
 
+    @AppStorage("train.rest.seconds") private var restDurationSeconds: Double = 90
+
     @Query(sort: \WorkoutType.name) private var workoutTypes: [WorkoutType]
     @Query(sort: \Exercise.name) private var exercises: [Exercise]
     @StateObject private var viewModel = TrainViewModel()
@@ -20,8 +22,32 @@ struct TrainView: View {
     @State private var setIsWarmup = false
     @State private var errorMessage: String?
 
+    @State private var restRemainingSeconds = 0
+    @State private var restTimer: Timer?
+
     private var theme: Theme {
         themeManager.theme(for: colorScheme)
+    }
+
+    private var groupedFilteredExercises: [(category: String, items: [Exercise])] {
+        let query = exerciseSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let filtered = exercises.filter { exercise in
+            guard !query.isEmpty else { return true }
+            return exercise.name.lowercased().contains(query)
+                || exercise.category.lowercased().contains(query)
+                || exercise.equipment.lowercased().contains(query)
+        }
+
+        let grouped = Dictionary(grouping: filtered) { $0.category }
+        return grouped.keys.sorted().map { key in
+            (category: key, items: grouped[key]?.sorted(by: { $0.name < $1.name }) ?? [])
+        }
+    }
+
+    private var formattedRest: String {
+        let minutes = restRemainingSeconds / 60
+        let seconds = restRemainingSeconds % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 
     var body: some View {
@@ -40,6 +66,10 @@ struct TrainView: View {
                     }
 
                     workoutControls
+
+                    if viewModel.activeSession != nil {
+                        restCard
+                    }
 
                     if let session = viewModel.activeSession {
                         DKCard(theme: theme) {
@@ -107,6 +137,9 @@ struct TrainView: View {
                     setEditorSheet(for: target)
                 }
             }
+            .onDisappear {
+                stopRestTimer()
+            }
         }
     }
 
@@ -141,8 +174,10 @@ struct TrainView: View {
                             if viewModel.activeSession == nil {
                                 guard let split = viewModel.selectedSplit else { return }
                                 try viewModel.startWorkout(using: split, context: modelContext)
+                                startRestTimer()
                             } else {
                                 try viewModel.endWorkout(context: modelContext)
+                                stopRestTimer()
                             }
                         } catch {
                             errorMessage = error.localizedDescription
@@ -165,33 +200,61 @@ struct TrainView: View {
         }
     }
 
-    private var filteredExercises: [Exercise] {
-        let query = exerciseSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !query.isEmpty else { return exercises }
+    private var restCard: some View {
+        DKCard(theme: theme) {
+            HStack(spacing: theme.spacing.m) {
+                VStack(alignment: .leading, spacing: theme.spacing.xs) {
+                    Text("Rest Timer")
+                        .font(theme.typography.headline)
+                        .foregroundStyle(theme.colors.textPrimary)
+                    Text("Auto-start: \(Int(restDurationSeconds)) sec")
+                        .font(theme.typography.caption)
+                        .foregroundStyle(theme.colors.textSecondary)
+                }
+                Spacer()
+                Text(formattedRest)
+                    .font(theme.typography.title)
+                    .foregroundStyle(theme.colors.accentPrimary)
 
-        return exercises.filter { exercise in
-            exercise.name.lowercased().contains(query)
-            || exercise.category.lowercased().contains(query)
-            || exercise.equipment.lowercased().contains(query)
+                Button(restRemainingSeconds > 0 ? "Reset" : "Start") {
+                    startRestTimer()
+                }
+                .font(theme.typography.caption)
+                .foregroundStyle(theme.colors.accentPrimary)
+            }
         }
     }
 
     private var exercisePickerSheet: some View {
         NavigationStack {
-            List(filteredExercises) { exercise in
-                Button {
-                    do {
-                        try viewModel.addExercise(exercise, context: modelContext)
-                        showingExercisePicker = false
-                    } catch {
-                        errorMessage = error.localizedDescription
-                    }
-                } label: {
-                    VStack(alignment: .leading) {
-                        Text(exercise.name)
-                        Text("\(exercise.category) • \(exercise.equipment)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+            List {
+                if groupedFilteredExercises.isEmpty {
+                    ContentUnavailableView(
+                        "No matches",
+                        systemImage: "magnifyingglass",
+                        description: Text("Try another workout name or category.")
+                    )
+                } else {
+                    ForEach(groupedFilteredExercises, id: \.category) { group in
+                        Section(group.category) {
+                            ForEach(group.items) { exercise in
+                                Button {
+                                    do {
+                                        try viewModel.addExercise(exercise, context: modelContext)
+                                        showingExercisePicker = false
+                                    } catch {
+                                        errorMessage = error.localizedDescription
+                                    }
+                                } label: {
+                                    VStack(alignment: .leading) {
+                                        Text(exercise.name)
+                                        Text("\(exercise.category) • \(exercise.equipment)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -199,7 +262,10 @@ struct TrainView: View {
             .navigationTitle("Add Exercise")
             .toolbar {
                 ToolbarItem(placement: .automatic) {
-                    Button("Close") { showingExercisePicker = false }
+                    Button("Close") {
+                        exerciseSearchText = ""
+                        showingExercisePicker = false
+                    }
                 }
             }
         }
@@ -238,6 +304,7 @@ struct TrainView: View {
                                 context: modelContext
                             )
                             setEditorTarget = nil
+                            if !setIsWarmup { startRestTimer() }
                         } catch {
                             errorMessage = error.localizedDescription
                         }
@@ -246,6 +313,25 @@ struct TrainView: View {
                 }
             }
         }
+    }
+
+    private func startRestTimer() {
+        stopRestTimer()
+        restRemainingSeconds = Int(restDurationSeconds)
+        guard restRemainingSeconds > 0 else { return }
+
+        restTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+            if restRemainingSeconds > 0 {
+                restRemainingSeconds -= 1
+            } else {
+                timer.invalidate()
+            }
+        }
+    }
+
+    private func stopRestTimer() {
+        restTimer?.invalidate()
+        restTimer = nil
     }
 }
 
