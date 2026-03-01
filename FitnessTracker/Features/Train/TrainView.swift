@@ -331,6 +331,10 @@ struct TrainView: View {
                                 Spacer()
                                 Text("~\(Int(rec.weight))")
                                     .foregroundStyle(.secondary)
+                                Button("Apply") {
+                                    applyRecommendation(rec)
+                                }
+                                .font(.caption)
                             }
                         }
                     }
@@ -394,6 +398,11 @@ struct TrainView: View {
             latestWorkingSet: latest,
             recentWorkingSets: Array(recentSets.suffix(12))
         )
+    }
+
+    private func applyRecommendation(_ recommendation: WorkingWeightRecommendation) {
+        setReps = String(recommendation.reps)
+        setWeight = String(Int(recommendation.weight.rounded()))
     }
 
     private func stopRestTimer() {
