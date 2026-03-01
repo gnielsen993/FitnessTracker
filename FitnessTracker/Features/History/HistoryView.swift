@@ -49,6 +49,10 @@ struct HistoryView: View {
                                 .foregroundStyle(theme.colors.textSecondary)
                         }
                     }
+
+                    if !sessions.isEmpty {
+                        recentSessionsList
+                    }
                 }
                 .padding(.vertical, theme.spacing.l)
                 .padding(.horizontal, theme.spacing.s)
@@ -68,6 +72,53 @@ struct HistoryView: View {
             }
         }
     }
+
+    // MARK: - Recent sessions list
+
+    private var recentSessionsList: some View {
+        DKCard(theme: theme) {
+            VStack(alignment: .leading, spacing: theme.spacing.s) {
+                Text("Recent Sessions")
+                    .font(theme.typography.headline)
+                    .foregroundStyle(theme.colors.textPrimary)
+
+                ForEach(sessions.prefix(8)) { session in
+                    NavigationLink {
+                        SessionDetailView(session: session)
+                            .environmentObject(themeManager)
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(session.workoutType?.name ?? "Workout")
+                                    .font(theme.typography.body)
+                                    .foregroundStyle(theme.colors.textPrimary)
+                                Text(session.startedAt.formatted(date: .abbreviated, time: .shortened))
+                                    .font(theme.typography.caption)
+                                    .foregroundStyle(theme.colors.textSecondary)
+                            }
+                            Spacer()
+                            if let dur = sessionDuration(session) {
+                                Text(dur)
+                                    .font(theme.typography.caption)
+                                    .foregroundStyle(theme.colors.textTertiary)
+                            }
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(theme.colors.textTertiary)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                    .buttonStyle(.plain)
+
+                    if session.id != sessions.prefix(8).last?.id {
+                        Divider()
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Calendar
 
     private var monthHeader: some View {
         HStack {
@@ -130,6 +181,7 @@ struct HistoryView: View {
         let intensity = min(1.0, Double(count) / 3.0)
 
         return Button {
+            guard count > 0 else { return }
             selectedDate = dayStart
         } label: {
             ZStack {
@@ -173,7 +225,20 @@ struct HistoryView: View {
     private var activeDaysInDisplayedMonth: Int {
         Set(sessionsInDisplayedMonth.map { calendar.startOfDay(for: $0.startedAt) }).count
     }
+
+    // MARK: - Helpers
+
+    private func sessionDuration(_ session: WorkoutSession) -> String? {
+        guard let endedAt = session.endedAt else { return nil }
+        let minutes = Int(endedAt.timeIntervalSince(session.startedAt) / 60)
+        if minutes < 60 { return "\(minutes) min" }
+        let hours = minutes / 60
+        let rem = minutes % 60
+        return rem == 0 ? "\(hours)h" : "\(hours)h \(rem)m"
+    }
 }
+
+// MARK: - Day history sheet
 
 private struct DayHistorySheet: View {
     @EnvironmentObject private var themeManager: ThemeManager
@@ -209,11 +274,19 @@ private struct DayHistorySheet: View {
                                             .font(resolvedTheme.typography.headline)
                                             .foregroundStyle(resolvedTheme.colors.textPrimary)
 
-                                        Text(session.startedAt.formatted(date: .omitted, time: .shortened))
-                                            .font(resolvedTheme.typography.caption)
-                                            .foregroundStyle(resolvedTheme.colors.textSecondary)
+                                        HStack(spacing: resolvedTheme.spacing.s) {
+                                            Text(session.startedAt.formatted(date: .omitted, time: .shortened))
+                                                .font(resolvedTheme.typography.caption)
+                                                .foregroundStyle(resolvedTheme.colors.textSecondary)
 
-                                        Text("Volume \(Int(StatsEngine.totalSessionVolume(session)))")
+                                            if let dur = sessionDuration(session) {
+                                                Text("· \(dur)")
+                                                    .font(resolvedTheme.typography.caption)
+                                                    .foregroundStyle(resolvedTheme.colors.textSecondary)
+                                            }
+                                        }
+
+                                        Text("Volume \(Int(StatsEngine.totalSessionVolume(session))) lbs")
                                             .font(resolvedTheme.typography.body)
                                             .foregroundStyle(resolvedTheme.colors.textSecondary)
                                     }
@@ -231,7 +304,18 @@ private struct DayHistorySheet: View {
             .navigationTitle(date.formatted(date: .abbreviated, time: .omitted))
         }
     }
+
+    private func sessionDuration(_ session: WorkoutSession) -> String? {
+        guard let endedAt = session.endedAt else { return nil }
+        let minutes = Int(endedAt.timeIntervalSince(session.startedAt) / 60)
+        if minutes < 60 { return "\(minutes) min" }
+        let hours = minutes / 60
+        let rem = minutes % 60
+        return rem == 0 ? "\(hours)h" : "\(hours)h \(rem)m"
+    }
 }
+
+// MARK: - Session detail
 
 private struct SessionDetailView: View {
     @EnvironmentObject private var themeManager: ThemeManager
@@ -254,6 +338,14 @@ private struct SessionDetailView: View {
                         Text(session.startedAt.formatted(date: .complete, time: .shortened))
                             .font(theme.typography.caption)
                             .foregroundStyle(theme.colors.textSecondary)
+                        if let dur = sessionDuration {
+                            Text(dur)
+                                .font(theme.typography.caption)
+                                .foregroundStyle(theme.colors.textSecondary)
+                        }
+                        Text("Volume: \(Int(StatsEngine.totalSessionVolume(session))) lbs")
+                            .font(theme.typography.body)
+                            .foregroundStyle(theme.colors.textSecondary)
                     }
                 }
 
@@ -263,9 +355,22 @@ private struct SessionDetailView: View {
                             Text(logged.exercise?.name ?? "Exercise")
                                 .font(theme.typography.headline)
                                 .foregroundStyle(theme.colors.textPrimary)
-                            Text("Sets \(logged.sets.count) • Volume \(Int(StatsEngine.exerciseVolume(logged)))")
+
+                            Text("Sets \(logged.sets.count) • Volume \(Int(StatsEngine.exerciseVolume(logged))) lbs")
                                 .font(theme.typography.caption)
                                 .foregroundStyle(theme.colors.textSecondary)
+
+                            let sortedSets = logged.sets.sorted { $0.createdAt < $1.createdAt }
+                            ForEach(sortedSets) { set in
+                                HStack(spacing: theme.spacing.xs) {
+                                    Text(set.isWarmup ? "W" : "•")
+                                        .foregroundStyle(set.isWarmup ? theme.colors.textTertiary : theme.colors.accentPrimary)
+                                    Text("\(String(format: "%g", set.weight)) lbs × \(set.reps)")
+                                        .foregroundStyle(theme.colors.textPrimary)
+                                    Spacer()
+                                }
+                                .font(theme.typography.caption)
+                            }
                         }
                     }
                 }
@@ -276,5 +381,14 @@ private struct SessionDetailView: View {
         }
         .background(theme.colors.background.ignoresSafeArea())
         .navigationTitle("Session")
+    }
+
+    private var sessionDuration: String? {
+        guard let endedAt = session.endedAt else { return nil }
+        let minutes = Int(endedAt.timeIntervalSince(session.startedAt) / 60)
+        if minutes < 60 { return "\(minutes) min" }
+        let hours = minutes / 60
+        let rem = minutes % 60
+        return rem == 0 ? "\(hours)h" : "\(hours)h \(rem)m"
     }
 }

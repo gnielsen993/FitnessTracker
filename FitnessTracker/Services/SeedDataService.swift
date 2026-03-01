@@ -19,9 +19,9 @@ final class SeedDataService {
 
         let groups = try context.fetch(FetchDescriptor<MuscleGroup>())
         let allRegions = groups.flatMap(\.regions)
-        let regionIndex = Dictionary(uniqueKeysWithValues: allRegions.map { ($0.name.lowercased(), $0) })
+        let regionIndex = Dictionary(allRegions.map { ($0.name.lowercased(), $0) }, uniquingKeysWith: { _, latest in latest })
 
-        var exerciseIndex = Dictionary(uniqueKeysWithValues: existing.map { ($0.name.lowercased(), $0) })
+        var exerciseIndex = Dictionary(existing.map { ($0.name.lowercased(), $0) }, uniquingKeysWith: { _, latest in latest })
 
         for seed in payload.exercises {
             let normalizedName = seed.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
