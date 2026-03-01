@@ -11,6 +11,7 @@ struct TrainView: View {
 
     @Query(sort: \WorkoutType.name) private var workoutTypes: [WorkoutType]
     @Query(sort: \Exercise.name) private var exercises: [Exercise]
+    @Query(sort: \WorkoutSession.startedAt, order: .reverse) private var sessions: [WorkoutSession]
     @StateObject private var viewModel = TrainViewModel()
 
     @State private var showingExercisePicker = false
@@ -312,6 +313,28 @@ struct TrainView: View {
 #endif
                     Toggle("Warm-up Set", isOn: $setIsWarmup)
                 }
+
+                if let suggestion = progressiveSuggestion(for: loggedExercise) {
+                    Section("Progressive Overload") {
+                        Text(suggestion.message)
+                            .font(.subheadline)
+
+                        if let oneRM = suggestion.estimatedOneRM {
+                            Text("Estimated 1RM (Epley): \(Int(oneRM.rounded()))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        ForEach(suggestion.recommendations) { rec in
+                            HStack {
+                                Text("\(rec.reps) reps")
+                                Spacer()
+                                Text("~\(Int(rec.weight))")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
             }
             .navigationTitle(loggedExercise.exercise?.name ?? "Set")
             .toolbar {
@@ -354,6 +377,23 @@ struct TrainView: View {
                 timer.invalidate()
             }
         }
+    }
+
+    private func progressiveSuggestion(for loggedExercise: LoggedExercise) -> ProgressiveSuggestion? {
+        guard let exercise = loggedExercise.exercise else { return nil }
+        let recentSets = sessions
+            .flatMap { $0.loggedExercises }
+            .filter { $0.exercise?.id == exercise.id }
+            .flatMap(\.sets)
+            .filter { !$0.isWarmup }
+            .sorted { $0.createdAt < $1.createdAt }
+
+        let latest = recentSets.last
+        return ProgressiveOverloadEngine.suggestion(
+            exercise: exercise,
+            latestWorkingSet: latest,
+            recentWorkingSets: Array(recentSets.suffix(12))
+        )
     }
 
     private func stopRestTimer() {
