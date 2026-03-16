@@ -17,6 +17,8 @@ struct TrainView: View {
     @State private var showingExercisePicker = false
     @State private var showingTemplatePicker = false
     @State private var showingCoverageDetails = false
+    @State private var showingNewRoutineSheet = false
+    @State private var newRoutineName = ""
     @State private var setEditorTarget: LoggedExercise?
     @State private var editingSet: LoggedSet?
     @State private var exerciseSearchText = ""
@@ -24,6 +26,9 @@ struct TrainView: View {
     @State private var setReps = "10"
     @State private var setWeight = "45"
     @State private var setIsWarmup = false
+    @State private var cardioDurationMinutes = "20"
+    @State private var cardioSpeedDescription = "6 mph"
+    @State private var cardioZoneDescription = "Zone 2"
     @State private var errorMessage: String?
 
     @State private var restRemainingSeconds = 0
@@ -59,6 +64,10 @@ struct TrainView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: theme.spacing.l) {
                     splitPicker
+
+                    if viewModel.activeSession != nil {
+                        routineProgressCard
+                    }
 
                     if let report = viewModel.coverageReport {
                         Button {
@@ -102,8 +111,18 @@ struct TrainView: View {
             }
             .background(theme.colors.background.ignoresSafeArea())
             .navigationTitle("Train")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("New Routine") {
+                        showingNewRoutineSheet = true
+                    }
+                }
+            }
             .sheet(isPresented: $showingExercisePicker) {
                 exercisePickerSheet
+            }
+            .sheet(isPresented: $showingNewRoutineSheet) {
+                newRoutineSheet
             }
             .sheet(isPresented: $showingTemplatePicker) {
                 if let split = viewModel.selectedSplit {
@@ -138,16 +157,134 @@ struct TrainView: View {
         }
     }
 
+
+    private var completedExerciseCount: Int {
+        guard let session = viewModel.activeSession else { return 0 }
+        return session.loggedExercises.filter(isExerciseCompleted).count
+    }
+
+    private var totalExerciseCount: Int {
+        viewModel.activeSession?.loggedExercises.count ?? 0
+    }
+
+    private var nextSuggestedExercise: LoggedExercise? {
+        guard let session = viewModel.activeSession else { return nil }
+        return session.loggedExercises
+            .sorted(by: { $0.orderIndex < $1.orderIndex })
+            .first(where: { !isExerciseCompleted($0) })
+    }
+
+    private func workingSetCount(for logged: LoggedExercise) -> Int {
+        logged.sets.filter { !$0.isWarmup }.count
+    }
+
+    private func isExerciseCompleted(_ logged: LoggedExercise) -> Bool {
+        if logged.isMarkedDone { return true }
+        return workingSetCount(for: logged) >= max(1, logged.targetWorkingSets)
+    }
+
+    // MARK: - Routine progress
+
+    private var routineProgressCard: some View {
+        DKCard(theme: theme) {
+            VStack(alignment: .leading, spacing: theme.spacing.s) {
+                Text("Today's Routine")
+                    .font(theme.typography.headline)
+                    .foregroundStyle(theme.colors.textPrimary)
+
+                Text("Completed \(completedExerciseCount) of \(totalExerciseCount)")
+                    .font(theme.typography.caption)
+                    .foregroundStyle(theme.colors.textSecondary)
+
+                if let nextSuggestedExercise {
+                    Text("Next up: \(nextSuggestedExercise.exercise?.name ?? "Exercise")")
+                        .font(theme.typography.body)
+                        .foregroundStyle(theme.colors.textPrimary)
+                }
+
+                let activeList = viewModel.activeSession?.loggedExercises.sorted(by: { $0.orderIndex < $1.orderIndex }) ?? []
+                if !activeList.isEmpty {
+                    ForEach(activeList) { logged in
+                        HStack(spacing: theme.spacing.xs) {
+                            Image(systemName: isExerciseCompleted(logged) ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(isExerciseCompleted(logged) ? theme.colors.success : theme.colors.textTertiary)
+                            Text(logged.exercise?.name ?? "Exercise")
+                                .font(theme.typography.caption)
+                                .foregroundStyle(theme.colors.textSecondary)
+                            Spacer()
+                            if (logged.exercise?.category ?? "") == "Cardio" {
+                                Text("Cardio")
+                                    .font(theme.typography.caption)
+                                    .foregroundStyle(theme.colors.accentPrimary)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - New routine
+
+    private var newRoutineSheet: some View {
+        NavigationStack {
+            Form {
+                Section("Create a routine") {
+                    TextField("Name (e.g., Workout A)", text: $newRoutineName)
+                    Text("Build your own weekly workout names and start them anytime.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("New Routine")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        showingNewRoutineSheet = false
+                        newRoutineName = ""
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Create") {
+                        let trimmed = newRoutineName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { return }
+                        let routine = WorkoutType(name: trimmed, includedMuscleGroups: [], templateExercises: [])
+                        modelContext.insert(routine)
+                        try? modelContext.save()
+                        viewModel.selectedSplit = routine
+                        showingNewRoutineSheet = false
+                        newRoutineName = ""
+                    }
+                    .disabled(newRoutineName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+    }
+
     // MARK: - Exercise row
 
     @ViewBuilder
     private func exerciseRow(for logged: LoggedExercise) -> some View {
         VStack(alignment: .leading, spacing: theme.spacing.s) {
             HStack {
+                Image(systemName: isExerciseCompleted(logged) ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isExerciseCompleted(logged) ? theme.colors.success : theme.colors.textTertiary)
                 Text(logged.exercise?.name ?? "Exercise")
                     .font(theme.typography.body)
                     .foregroundStyle(theme.colors.textPrimary)
+                if (logged.exercise?.category ?? "") == "Cardio" {
+                    Text("Cardio")
+                        .font(theme.typography.caption)
+                        .foregroundStyle(theme.colors.accentPrimary)
+                }
                 Spacer()
+                Button(logged.isMarkedDone ? "Undo" : "Done") {
+                    logged.isMarkedDone.toggle()
+                    try? modelContext.save()
+                }
+                .font(theme.typography.caption)
+                .foregroundStyle(logged.isMarkedDone ? theme.colors.success : theme.colors.textSecondary)
+
                 Button("Add Set") {
                     openSetEditor(for: nil, in: logged)
                 }
@@ -166,9 +303,25 @@ struct TrainView: View {
                 }
             }
 
-            Text("Sets: \(logged.sets.count) • Volume: \(Int(StatsEngine.exerciseVolume(logged))) lbs")
-                .font(theme.typography.caption)
+            HStack(spacing: theme.spacing.s) {
+                Text("Target \(logged.targetWorkingSets) sets • Logged \(workingSetCount(for: logged)) • Volume \(Int(StatsEngine.exerciseVolume(logged))) lbs")
+                    .font(theme.typography.caption)
+                    .foregroundStyle(theme.colors.textSecondary)
+                Spacer()
+                Button {
+                    logged.targetWorkingSets = max(1, logged.targetWorkingSets - 1)
+                    try? modelContext.save()
+                } label: { Image(systemName: "minus.circle") }
+                .buttonStyle(.plain)
                 .foregroundStyle(theme.colors.textSecondary)
+
+                Button {
+                    logged.targetWorkingSets += 1
+                    try? modelContext.save()
+                } label: { Image(systemName: "plus.circle") }
+                .buttonStyle(.plain)
+                .foregroundStyle(theme.colors.accentPrimary)
+            }
 
             let sortedSets = logged.sets.sorted { $0.createdAt < $1.createdAt }
             ForEach(sortedSets) { set in
@@ -178,7 +331,7 @@ struct TrainView: View {
                     HStack(spacing: theme.spacing.xs) {
                         Text(set.isWarmup ? "W" : "•")
                             .foregroundStyle(set.isWarmup ? theme.colors.textTertiary : theme.colors.accentPrimary)
-                        Text("\(String(format: "%g", set.weight)) lbs × \(set.reps)")
+                        Text(cardioSetSummary(set, for: logged))
                             .foregroundStyle(theme.colors.textPrimary)
                         Spacer()
                         Image(systemName: "pencil")
@@ -192,12 +345,25 @@ struct TrainView: View {
         }
     }
 
+    private func cardioSetSummary(_ set: LoggedSet, for logged: LoggedExercise) -> String {
+        let isCardio = (logged.exercise?.category ?? "") == "Cardio"
+        guard isCardio else { return "\(String(format: "%g", set.weight)) lbs × \(set.reps)" }
+
+        let duration = set.cardioDurationMinutes.map { String(format: "%g min", $0) } ?? "-"
+        let speed = (set.cardioSpeedDescription?.isEmpty == false) ? set.cardioSpeedDescription! : "pace n/a"
+        let zone = (set.cardioZoneDescription?.isEmpty == false) ? set.cardioZoneDescription! : "zone n/a"
+        return "\(duration) • \(speed) • \(zone)"
+    }
+
     private func openSetEditor(for set: LoggedSet?, in logged: LoggedExercise) {
         if let set {
             editingSet = set
             setReps = String(set.reps)
             setWeight = String(format: "%g", set.weight)
             setIsWarmup = set.isWarmup
+            cardioDurationMinutes = set.cardioDurationMinutes.map { String(format: "%g", $0) } ?? "20"
+            cardioSpeedDescription = set.cardioSpeedDescription ?? "6 mph"
+            cardioZoneDescription = set.cardioZoneDescription ?? "Zone 2"
         } else {
             editingSet = nil
             // Pre-fill from last logged set for this exercise.
@@ -205,10 +371,16 @@ struct TrainView: View {
                 setReps = String(last.reps)
                 setWeight = String(format: "%g", last.weight)
                 setIsWarmup = last.isWarmup
+                cardioDurationMinutes = last.cardioDurationMinutes.map { String(format: "%g", $0) } ?? "20"
+                cardioSpeedDescription = last.cardioSpeedDescription ?? "6 mph"
+                cardioZoneDescription = last.cardioZoneDescription ?? "Zone 2"
             } else {
                 setReps = "10"
                 setWeight = "45"
                 setIsWarmup = false
+                cardioDurationMinutes = "20"
+                cardioSpeedDescription = "6 mph"
+                cardioZoneDescription = "Zone 2"
             }
         }
         setEditorTarget = logged
@@ -219,12 +391,12 @@ struct TrainView: View {
     private var splitPicker: some View {
         DKCard(theme: theme) {
             VStack(alignment: .leading, spacing: theme.spacing.s) {
-                Text("Split")
+                Text("Routine")
                     .font(theme.typography.headline)
                     .foregroundStyle(theme.colors.textPrimary)
 
-                Picker("Workout Type", selection: $viewModel.selectedSplit) {
-                    Text("Select Split").tag(Optional<WorkoutType>.none)
+                Picker("Workout Routine", selection: $viewModel.selectedSplit) {
+                    Text("Select Routine").tag(Optional<WorkoutType>.none)
                     ForEach(workoutTypes) { split in
                         Text(split.name).tag(Optional(split))
                     }
@@ -239,8 +411,8 @@ struct TrainView: View {
                         HStack(spacing: theme.spacing.xs) {
                             Image(systemName: "list.bullet")
                             Text(split.templateExercises.isEmpty
-                                 ? "Set Up Template"
-                                 : "\(split.templateExercises.count) template exercise\(split.templateExercises.count == 1 ? "" : "s")")
+                                 ? "Build Routine"
+                                 : "\(split.templateExercises.count) items in routine")
                         }
                         .font(theme.typography.caption)
                         .foregroundStyle(theme.colors.accentPrimary)
@@ -395,14 +567,26 @@ struct TrainView: View {
         NavigationStack {
             Form {
                 Section("Set") {
-                    TextField("Reps", text: $setReps)
+                    let isCardio = (loggedExercise.exercise?.category ?? "") == "Cardio"
+
+                    if isCardio {
+                        TextField("Duration (min)", text: $cardioDurationMinutes)
 #if os(iOS)
-                        .keyboardType(.numberPad)
+                            .keyboardType(.decimalPad)
 #endif
-                    TextField("Weight", text: $setWeight)
+                        TextField("Speed / Pace (e.g., 6 mph)", text: $cardioSpeedDescription)
+                        TextField("Zone (e.g., Zone 2)", text: $cardioZoneDescription)
+                    } else {
+                        TextField("Reps", text: $setReps)
 #if os(iOS)
-                        .keyboardType(.decimalPad)
+                            .keyboardType(.numberPad)
 #endif
+                        TextField("Weight", text: $setWeight)
+#if os(iOS)
+                            .keyboardType(.decimalPad)
+#endif
+                    }
+
                     Toggle("Warm-up Set", isOn: $setIsWarmup)
                 }
 
@@ -464,12 +648,15 @@ struct TrainView: View {
                             let reps = Int(setReps) ?? 0
                             let weight = Double(setWeight) ?? 0
                             if let existing = editingSet {
-                                try viewModel.updateSet(existing, reps: reps, weight: weight, isWarmup: setIsWarmup, context: modelContext)
+                                try viewModel.updateSet(existing, reps: reps, weight: weight, isWarmup: setIsWarmup, cardioDurationMinutes: Double(cardioDurationMinutes), cardioSpeedDescription: cardioSpeedDescription.trimmingCharacters(in: .whitespacesAndNewlines), cardioZoneDescription: cardioZoneDescription.trimmingCharacters(in: .whitespacesAndNewlines), context: modelContext)
                             } else {
                                 try viewModel.addSet(
                                     reps: reps,
                                     weight: weight,
                                     isWarmup: setIsWarmup,
+                                    cardioDurationMinutes: Double(cardioDurationMinutes),
+                                    cardioSpeedDescription: cardioSpeedDescription.trimmingCharacters(in: .whitespacesAndNewlines),
+                                    cardioZoneDescription: cardioZoneDescription.trimmingCharacters(in: .whitespacesAndNewlines),
                                     to: loggedExercise,
                                     context: modelContext
                                 )
@@ -481,7 +668,7 @@ struct TrainView: View {
                             errorMessage = error.localizedDescription
                         }
                     }
-                    .disabled((Int(setReps) ?? 0) <= 0 || (Double(setWeight) ?? 0) < 0)
+                    .disabled(((loggedExercise.exercise?.category ?? "") == "Cardio") ? ((Double(cardioDurationMinutes) ?? 0) <= 0) : ((Int(setReps) ?? 0) <= 0 || (Double(setWeight) ?? 0) < 0))
                 }
             }
         }
@@ -491,6 +678,7 @@ struct TrainView: View {
 
     private func progressiveSuggestion(for loggedExercise: LoggedExercise) -> ProgressiveSuggestion? {
         guard let exercise = loggedExercise.exercise else { return nil }
+        guard exercise.category != "Cardio" else { return nil }
 
         let activeSessionId = viewModel.activeSession?.id
 
@@ -616,6 +804,9 @@ private struct TemplateEditorSheet: View {
     let exercises: [Exercise]
 
     @State private var searchText = ""
+    @State private var cardioName = ""
+
+    private let quickCardio = ["Incline Treadmill Walk", "Jogging", "Cycling", "Rowing", "Hiking"]
 
     private var theme: Theme { themeManager.theme(for: colorScheme) }
 
@@ -625,6 +816,25 @@ private struct TemplateEditorSheet: View {
         return exercises.filter {
             $0.name.lowercased().contains(query) || $0.category.lowercased().contains(query)
         }
+    }
+
+
+    private func addCardioExercise(named rawName: String) {
+        let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+
+        if let existing = exercises.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
+            if !split.templateExercises.contains(where: { $0.id == existing.id }) {
+                split.templateExercises.append(existing)
+                try? modelContext.save()
+            }
+            return
+        }
+
+        let newExercise = Exercise(name: name, category: "Cardio", equipment: "Cardio")
+        modelContext.insert(newExercise)
+        split.templateExercises.append(newExercise)
+        try? modelContext.save()
     }
 
     var body: some View {
@@ -653,6 +863,32 @@ private struct TemplateEditorSheet: View {
                     }
                 }
 
+                Section("Cardio") {
+                    ForEach(quickCardio, id: \.self) { name in
+                        Button {
+                            addCardioExercise(named: name)
+                        } label: {
+                            HStack {
+                                Text(name)
+                                Spacer()
+                                Text("Zone 2")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    HStack {
+                        TextField("Custom cardio", text: $cardioName)
+                        Button("Add") {
+                            addCardioExercise(named: cardioName)
+                            cardioName = ""
+                        }
+                        .disabled(cardioName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+
                 Section("All Exercises") {
                     ForEach(filteredExercises) { exercise in
                         let isInTemplate = split.templateExercises.contains { $0.id == exercise.id }
@@ -674,7 +910,7 @@ private struct TemplateEditorSheet: View {
                 }
             }
             .searchable(text: $searchText, prompt: "Search exercises")
-            .navigationTitle("Template: \(split.name)")
+            .navigationTitle("Routine Builder: \(split.name)")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }

@@ -8,6 +8,9 @@ final class LoggedSet {
     var weight: Double
     var isWarmup: Bool
     var createdAt: Date
+    var cardioDurationMinutes: Double?
+    var cardioSpeedDescription: String?
+    var cardioZoneDescription: String?
 
     var loggedExercise: LoggedExercise?
 
@@ -17,6 +20,9 @@ final class LoggedSet {
         weight: Double,
         isWarmup: Bool = false,
         createdAt: Date = .now,
+        cardioDurationMinutes: Double? = nil,
+        cardioSpeedDescription: String? = nil,
+        cardioZoneDescription: String? = nil,
         loggedExercise: LoggedExercise? = nil
     ) {
         self.id = id
@@ -24,6 +30,9 @@ final class LoggedSet {
         self.weight = weight
         self.isWarmup = isWarmup
         self.createdAt = createdAt
+        self.cardioDurationMinutes = cardioDurationMinutes
+        self.cardioSpeedDescription = cardioSpeedDescription
+        self.cardioZoneDescription = cardioZoneDescription
         self.loggedExercise = loggedExercise
     }
 

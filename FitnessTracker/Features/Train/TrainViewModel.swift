@@ -15,9 +15,8 @@ final class TrainViewModel: ObservableObject {
         selectedSplit = split
 
         // Auto-add template exercises so the user doesn't start from scratch every session.
-        let sortedTemplate = split.templateExercises.sorted { $0.name < $1.name }
-        for (index, exercise) in sortedTemplate.enumerated() {
-            let logged = LoggedExercise(orderIndex: index, session: session, exercise: exercise)
+        for (index, exercise) in split.templateExercises.enumerated() {
+            let logged = LoggedExercise(orderIndex: index, targetWorkingSets: 3, isMarkedDone: false, session: session, exercise: exercise)
             context.insert(logged)
             session.loggedExercises.append(logged)
         }
@@ -39,7 +38,7 @@ final class TrainViewModel: ObservableObject {
         }
 
         let nextIndex = session.loggedExercises.count
-        let logged = LoggedExercise(orderIndex: nextIndex, session: session, exercise: exercise)
+        let logged = LoggedExercise(orderIndex: nextIndex, targetWorkingSets: 3, isMarkedDone: false, session: session, exercise: exercise)
         context.insert(logged)
         session.loggedExercises.append(logged)
         try context.save()
@@ -58,26 +57,32 @@ final class TrainViewModel: ObservableObject {
         reps: Int,
         weight: Double,
         isWarmup: Bool,
+        cardioDurationMinutes: Double? = nil,
+        cardioSpeedDescription: String? = nil,
+        cardioZoneDescription: String? = nil,
         to loggedExercise: LoggedExercise,
         context: ModelContext
     ) throws {
         guard reps > 0 else { throw TrainError.invalidReps }
         guard weight >= 0 else { throw TrainError.invalidWeight }
 
-        let set = LoggedSet(reps: reps, weight: weight, isWarmup: isWarmup, loggedExercise: loggedExercise)
+        let set = LoggedSet(reps: reps, weight: weight, isWarmup: isWarmup, cardioDurationMinutes: cardioDurationMinutes, cardioSpeedDescription: cardioSpeedDescription, cardioZoneDescription: cardioZoneDescription, loggedExercise: loggedExercise)
         context.insert(set)
         loggedExercise.sets.append(set)
         try context.save()
         refreshCoverage()
     }
 
-    func updateSet(_ set: LoggedSet, reps: Int, weight: Double, isWarmup: Bool, context: ModelContext) throws {
+    func updateSet(_ set: LoggedSet, reps: Int, weight: Double, isWarmup: Bool, cardioDurationMinutes: Double? = nil, cardioSpeedDescription: String? = nil, cardioZoneDescription: String? = nil, context: ModelContext) throws {
         guard reps > 0 else { throw TrainError.invalidReps }
         guard weight >= 0 else { throw TrainError.invalidWeight }
 
         set.reps = reps
         set.weight = weight
         set.isWarmup = isWarmup
+        set.cardioDurationMinutes = cardioDurationMinutes
+        set.cardioSpeedDescription = cardioSpeedDescription
+        set.cardioZoneDescription = cardioZoneDescription
         try context.save()
         refreshCoverage()
     }
