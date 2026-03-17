@@ -3,62 +3,65 @@ import SwiftData
 
 final class BootstrapService {
     func bootstrapIfNeeded(context: ModelContext) throws {
-        let existingGroups = try context.fetch(FetchDescriptor<MuscleGroup>())
-        guard existingGroups.isEmpty else { return }
-
-        let chest = MuscleGroup(name: "Chest", regions: [
-            MuscleRegion(name: "Upper"),
-            MuscleRegion(name: "Mid"),
-            MuscleRegion(name: "Lower")
-        ])
-
-        let triceps = MuscleGroup(name: "Triceps", regions: [
-            MuscleRegion(name: "Long"),
-            MuscleRegion(name: "Lateral"),
-            MuscleRegion(name: "Medial")
-        ])
-
-        let shoulders = MuscleGroup(name: "Shoulders", regions: [
-            MuscleRegion(name: "Anterior"),
-            MuscleRegion(name: "Lateral"),
-            MuscleRegion(name: "Posterior")
-        ])
-
-        let back = MuscleGroup(name: "Back", regions: [
-            MuscleRegion(name: "Lats"),
-            MuscleRegion(name: "Upper Back"),
-            MuscleRegion(name: "Lower Back")
-        ])
-
-        let biceps = MuscleGroup(name: "Biceps", regions: [
-            MuscleRegion(name: "Long"),
-            MuscleRegion(name: "Short"),
-            MuscleRegion(name: "Brachialis")
-        ])
-
-        let legs = MuscleGroup(name: "Legs", regions: [
-            MuscleRegion(name: "Quads"),
-            MuscleRegion(name: "Hamstrings"),
-            MuscleRegion(name: "Glutes"),
-            MuscleRegion(name: "Calves")
-        ])
-
-        let core = MuscleGroup(name: "Core", regions: [
-            MuscleRegion(name: "Upper Abs"),
-            MuscleRegion(name: "Lower Abs"),
-            MuscleRegion(name: "Obliques")
-        ])
-
-        let groups = [chest, triceps, shoulders, back, biceps, legs, core]
-        groups.forEach { context.insert($0) }
-
-        let push = WorkoutType(name: "Push", includedMuscleGroups: [chest, triceps, shoulders])
-        let pull = WorkoutType(name: "Pull", includedMuscleGroups: [back, biceps, shoulders])
-        let lower = WorkoutType(name: "Lower", includedMuscleGroups: [legs, core])
-        let fullBody = WorkoutType(name: "Full Body", includedMuscleGroups: groups)
-
-        [push, pull, lower, fullBody].forEach { context.insert($0) }
-
+        let groups = try ensureMuscleGroups(context: context)
+        try ensureDefaultRoutines(context: context, groups: groups)
         try context.save()
+    }
+
+    private func ensureMuscleGroups(context: ModelContext) throws -> [String: MuscleGroup] {
+        let existingGroups = try context.fetch(FetchDescriptor<MuscleGroup>())
+        var groupIndex = Dictionary(uniqueKeysWithValues: existingGroups.map { ($0.name.lowercased(), $0) })
+
+        func ensureGroup(_ name: String, _ regions: [String]) -> MuscleGroup {
+            if let g = groupIndex[name.lowercased()] {
+                let existingRegionNames = Set(g.regions.map { $0.name.lowercased() })
+                for region in regions where !existingRegionNames.contains(region.lowercased()) {
+                    g.regions.append(MuscleRegion(name: region, group: g))
+                }
+                return g
+            }
+
+            let group = MuscleGroup(name: name, regions: regions.map { MuscleRegion(name: $0) })
+            context.insert(group)
+            groupIndex[name.lowercased()] = group
+            return group
+        }
+
+        _ = ensureGroup("Chest", ["Upper", "Mid", "Lower"])
+        _ = ensureGroup("Triceps", ["Long", "Lateral", "Medial"])
+        _ = ensureGroup("Shoulders", ["Anterior", "Lateral", "Posterior"])
+        _ = ensureGroup("Back", ["Lats", "Upper Back", "Lower Back"])
+        _ = ensureGroup("Biceps", ["Long", "Short", "Brachialis"])
+        _ = ensureGroup("Legs", ["Quads", "Hamstrings", "Glutes", "Calves"])
+        _ = ensureGroup("Core", ["Upper Abs", "Lower Abs", "Obliques"])
+
+        return groupIndex
+    }
+
+    private func ensureDefaultRoutines(context: ModelContext, groups: [String: MuscleGroup]) throws {
+        let existingRoutines = try context.fetch(FetchDescriptor<WorkoutType>())
+        var routineIndex = Dictionary(uniqueKeysWithValues: existingRoutines.map { ($0.name.lowercased(), $0) })
+
+        let allGroups = ["chest", "triceps", "shoulders", "back", "biceps", "legs", "core"].compactMap { groups[$0] }
+
+        func ensureRoutine(_ name: String, _ groupKeys: [String]) {
+            let targetGroups = groupKeys.compactMap { groups[$0] }
+            if let existing = routineIndex[name.lowercased()] {
+                let existingIDs = Set(existing.includedMuscleGroups.map { $0.id })
+                for group in targetGroups where !existingIDs.contains(group.id) {
+                    existing.includedMuscleGroups.append(group)
+                }
+                return
+            }
+
+            let created = WorkoutType(name: name, includedMuscleGroups: targetGroups)
+            context.insert(created)
+            routineIndex[name.lowercased()] = created
+        }
+
+        ensureRoutine("Push", ["chest", "triceps", "shoulders"])
+        ensureRoutine("Pull", ["back", "biceps", "shoulders"])
+        ensureRoutine("Lower", ["legs", "core"])
+        ensureRoutine("Full Body", allGroups.map { $0.name.lowercased() })
     }
 }

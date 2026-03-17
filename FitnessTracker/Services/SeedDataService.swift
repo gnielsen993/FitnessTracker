@@ -80,6 +80,30 @@ final class SeedDataService {
             }
         }
 
+
+        // Ensure built-in routines have starter exercises if empty.
+        let routines = try context.fetch(FetchDescriptor<WorkoutType>())
+        let byName = Dictionary(uniqueKeysWithValues: routines.map { ($0.name.lowercased(), $0) })
+
+        func addStarterExercises(to routineName: String, categories: Set<String>, limit: Int = 8) {
+            guard let routine = byName[routineName.lowercased()] else { return }
+            guard routine.templateExercises.isEmpty else { return }
+
+            let picks = exerciseIndex.values
+                .filter { categories.contains($0.category.lowercased()) }
+                .sorted { $0.name < $1.name }
+                .prefix(limit)
+
+            for ex in picks {
+                routine.templateExercises.append(ex)
+            }
+        }
+
+        addStarterExercises(to: "Push", categories: ["chest", "triceps", "shoulders"])
+        addStarterExercises(to: "Pull", categories: ["back", "biceps", "shoulders"])
+        addStarterExercises(to: "Lower", categories: ["legs", "core"])
+        addStarterExercises(to: "Full Body", categories: ["chest", "triceps", "shoulders", "back", "biceps", "legs", "core"])
+
         try context.save()
     }
 }

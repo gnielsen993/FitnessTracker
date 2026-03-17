@@ -82,6 +82,29 @@ struct SettingsView: View {
                         }
                     }
 
+
+                    DKCard(theme: theme) {
+                        VStack(alignment: .leading, spacing: theme.spacing.m) {
+                            Text("Routines")
+                                .font(theme.typography.headline)
+                                .foregroundStyle(theme.colors.textPrimary)
+
+                            NavigationLink {
+                                RoutinesLibraryView()
+                                    .environmentObject(themeManager)
+                            } label: {
+                                HStack {
+                                    Text("Manage routines")
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
                     DKCard(theme: theme) {
                         VStack(alignment: .leading, spacing: theme.spacing.m) {
                             Text("Data")
