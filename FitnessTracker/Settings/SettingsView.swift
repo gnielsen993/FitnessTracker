@@ -13,6 +13,7 @@ struct SettingsView: View {
     @Query(sort: \Exercise.name) private var exercises: [Exercise]
 
     @State private var restDurationSeconds: Double = RestTimerSettings.load()
+    @State private var selectedWeightUnit: WeightUnit = WeightUnitSettings.load()
 
     @State private var exportDocument: BackupJSONDocument?
     @State private var showingExporter = false
@@ -51,6 +52,17 @@ struct SettingsView: View {
                             .pickerStyle(.menu)
 
                             Divider()
+
+                            Text("Units")
+                                .font(theme.typography.headline)
+                                .foregroundStyle(theme.colors.textPrimary)
+
+                            Picker("Weight Unit", selection: $selectedWeightUnit) {
+                                ForEach(WeightUnit.allCases) { unit in
+                                    Text(unit.displayName.uppercased()).tag(unit)
+                                }
+                            }
+                            .pickerStyle(.segmented)
 
                             Text("Rest Timer")
                                 .font(theme.typography.headline)
@@ -120,9 +132,13 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .onAppear {
                 restDurationSeconds = RestTimerSettings.load()
+                selectedWeightUnit = WeightUnitSettings.load()
             }
             .onChange(of: restDurationSeconds) { _, newValue in
                 RestTimerSettings.save(newValue)
+            }
+            .onChange(of: selectedWeightUnit) { _, newValue in
+                WeightUnitSettings.save(newValue)
             }
             .fileExporter(
                 isPresented: $showingExporter,

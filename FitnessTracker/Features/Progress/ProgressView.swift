@@ -3,6 +3,13 @@ import SwiftData
 import Charts
 import DesignKit
 
+private struct TrendPoint: Identifiable {
+    let id = UUID()
+    let date: Date
+    let value: Double
+    let mode: String // "Weight" or "Pin"
+}
+
 struct ProgressView: View {
     enum Range: String, CaseIterable, Identifiable {
         case oneMonth = "1M"
@@ -95,7 +102,7 @@ struct ProgressView: View {
                     return selectedLift.aliases.contains(where: { name.contains($0) })
                 }
                 .flatMap(\.sets)
-                .filter { !$0.isWarmup }
+                .filter { !$0.isWarmup && ($0.pinPosition?.isEmpty != false) && $0.weight > 0 }
 
             guard !sets.isEmpty else { return nil }
             let peak = sets.map { StatsEngine.estimatedOneRepMax(weight: $0.weight, reps: $0.reps) }.max() ?? 0
@@ -103,13 +110,8 @@ struct ProgressView: View {
         }
     }
 
-    private var liftNow: Double {
-        liftSeries.last?.value ?? 0
-    }
-
-    private var liftStart: Double {
-        liftSeries.first?.value ?? 0
-    }
+    private var liftNow: Double { liftSeries.last?.value ?? 0 }
+    private var liftStart: Double { liftSeries.first?.value ?? 0 }
 
     private var liftDeltaPercent: Double {
         guard liftStart > 0 else { return 0 }
@@ -170,7 +172,7 @@ struct ProgressView: View {
                                 .font(theme.typography.headline)
                                 .foregroundStyle(theme.colors.textPrimary)
 
-                            TextField("Search workout (e.g. Barbell Row)", text: $searchText)
+                            TextField("Search workout (e.g. Cable Fly)", text: $searchText)
                                 .textFieldStyle(.roundedBorder)
 
                             if exerciseNames.isEmpty {
@@ -179,14 +181,17 @@ struct ProgressView: View {
                                     .foregroundStyle(theme.colors.textSecondary)
                             } else {
                                 ForEach(exerciseNames.prefix(8), id: \.self) { name in
+                                    let weightSeries = weightProgressionSeries(for: name)
+                                    let pinSeries = pinProgressionSeries(for: name)
                                     NavigationLink {
                                         WorkoutTrendDetailView(
                                             exerciseName: name,
-                                            progression: progressionSeries(for: name),
+                                            weightProgression: weightSeries,
+                                            pinProgression: pinSeries,
                                             theme: theme
                                         )
                                     } label: {
-                                        exerciseTrendCard(for: name)
+                                        exerciseTrendCard(for: name, weightSeries: weightSeries, pinSeries: pinSeries)
                                     }
                                     .buttonStyle(.plain)
                                 }
@@ -243,22 +248,15 @@ struct ProgressView: View {
                 }
 
                 if liftSeries.isEmpty {
-                    Text("No \(selectedLift.rawValue.lowercased()) data yet in selected range.")
+                    Text("No weighted \(selectedLift.rawValue.lowercased()) data yet in selected range.")
                         .font(theme.typography.caption)
                         .foregroundStyle(theme.colors.textSecondary)
                 } else {
                     Chart(liftSeries, id: \.date) { point in
-                        LineMark(
-                            x: .value("Date", point.date),
-                            y: .value("e1RM", point.value)
-                        )
-                        .foregroundStyle(theme.charts.chart2)
-
-                        PointMark(
-                            x: .value("Date", point.date),
-                            y: .value("e1RM", point.value)
-                        )
-                        .foregroundStyle(theme.charts.chart2)
+                        LineMark(x: .value("Date", point.date), y: .value("e1RM", point.value))
+                            .foregroundStyle(theme.charts.chart2)
+                        PointMark(x: .value("Date", point.date), y: .value("e1RM", point.value))
+                            .foregroundStyle(theme.charts.chart2)
                     }
                     .dkChartStyle(theme: theme)
                     .frame(height: 150)
@@ -267,8 +265,9 @@ struct ProgressView: View {
         }
     }
 
-    private func exerciseTrendCard(for exerciseName: String) -> some View {
-        let progression = progressionSeries(for: exerciseName)
+    private func exerciseTrendCard(for exerciseName: String, weightSeries: [(date: Date, value: Double)], pinSeries: [(date: Date, value: Double)]) -> some View {
+        let weightLatest = weightSeries.last?.value
+        let pinLatest = pinSeries.last?.value
 
         return DKCard(theme: theme) {
             VStack(alignment: .leading, spacing: theme.spacing.s) {
@@ -277,34 +276,57 @@ struct ProgressView: View {
                         .font(theme.typography.headline)
                         .foregroundStyle(theme.colors.textPrimary)
                     Spacer()
-                    if let latest = progression.last?.value {
-                        Text("Top e1RM \(Int(latest))")
+
+                    if weightLatest != nil {
+                        Text("Weight")
                             .font(theme.typography.caption)
-                            .foregroundStyle(theme.colors.textSecondary)
+                            .foregroundStyle(theme.colors.accentPrimary)
                     }
+                    if pinLatest != nil {
+                        Text("Pin")
+                            .font(theme.typography.caption)
+                            .foregroundStyle(theme.colors.success)
+                    }
+
                     Image(systemName: "chevron.right")
                         .font(.caption)
                         .foregroundStyle(theme.colors.textTertiary)
                 }
 
-                if progression.isEmpty {
+                if weightSeries.isEmpty && pinSeries.isEmpty {
                     Text("No logged sets yet.")
                         .font(theme.typography.caption)
                         .foregroundStyle(theme.colors.textSecondary)
                 } else {
-                    Chart(progression, id: \.date) { point in
+                    if let w = weightLatest {
+                        Text("Latest weighted e1RM: \(Int(w))")
+                            .font(theme.typography.caption)
+                            .foregroundStyle(theme.colors.textSecondary)
+                    }
+                    if let p = pinLatest {
+                        Text("Latest pin: \(Int(p))")
+                            .font(theme.typography.caption)
+                            .foregroundStyle(theme.colors.textSecondary)
+                    }
+
+                    let merged = mergedTrendSeries(weightSeries: weightSeries, pinSeries: pinSeries)
+                    Chart(merged) { point in
                         LineMark(
                             x: .value("Date", point.date),
-                            y: .value("e1RM", point.value)
+                            y: .value(point.mode, point.value)
                         )
-                        .foregroundStyle(theme.charts.chart2)
+                        .foregroundStyle(by: .value("Mode", point.mode))
 
                         PointMark(
                             x: .value("Date", point.date),
-                            y: .value("e1RM", point.value)
+                            y: .value(point.mode, point.value)
                         )
-                        .foregroundStyle(theme.charts.chart2)
+                        .foregroundStyle(by: .value("Mode", point.mode))
                     }
+                    .chartForegroundStyleScale([
+                        "Weight": theme.charts.chart2,
+                        "Pin": theme.charts.chart3
+                    ])
                     .dkChartStyle(theme: theme)
                     .frame(height: 140)
                 }
@@ -312,56 +334,80 @@ struct ProgressView: View {
         }
     }
 
-    private func progressionSeries(for exerciseName: String) -> [(date: Date, value: Double)] {
+    private func mergedTrendSeries(weightSeries: [(date: Date, value: Double)], pinSeries: [(date: Date, value: Double)]) -> [TrendPoint] {
+        let weightPoints = weightSeries.map { TrendPoint(date: $0.date, value: $0.value, mode: "Weight") }
+        let pinPoints = pinSeries.map { TrendPoint(date: $0.date, value: $0.value, mode: "Pin") }
+        return (weightPoints + pinPoints).sorted { $0.date < $1.date }
+    }
+
+    private func weightProgressionSeries(for exerciseName: String) -> [(date: Date, value: Double)] {
         filteredSessions.compactMap { session in
             let sets = session.loggedExercises
                 .filter { $0.exercise?.name == exerciseName }
                 .flatMap(\.sets)
-                .filter { !$0.isWarmup }
+                .filter { !$0.isWarmup && ($0.pinPosition?.isEmpty != false) && $0.weight > 0 }
 
             guard !sets.isEmpty else { return nil }
             let peak = sets.map { StatsEngine.estimatedOneRepMax(weight: $0.weight, reps: $0.reps) }.max() ?? 0
             return (date: session.startedAt, value: peak)
         }
     }
+
+    private func pinProgressionSeries(for exerciseName: String) -> [(date: Date, value: Double)] {
+        filteredSessions.compactMap { session in
+            let sets = session.loggedExercises
+                .filter { $0.exercise?.name == exerciseName }
+                .flatMap(\.sets)
+                .filter { !$0.isWarmup }
+
+            let pinValues = sets.compactMap { parsePinValue($0.pinPosition) }
+            guard !pinValues.isEmpty else { return nil }
+            return (date: session.startedAt, value: pinValues.max() ?? 0)
+        }
+    }
+
+    private func parsePinValue(_ raw: String?) -> Double? {
+        guard let raw else { return nil }
+        let digits = raw.filter { $0.isNumber }
+        guard let value = Double(digits) else { return nil }
+        return value
+    }
 }
 
 private struct WorkoutTrendDetailView: View {
     let exerciseName: String
-    let progression: [(date: Date, value: Double)]
+    let weightProgression: [(date: Date, value: Double)]
+    let pinProgression: [(date: Date, value: Double)]
     let theme: Theme
 
-    private var best: Double { progression.map(\.value).max() ?? 0 }
-    private var latest: Double { progression.last?.value ?? 0 }
-    private var deltaPercent: Double {
-        guard let first = progression.first?.value, first > 0 else { return 0 }
-        return ((latest - first) / first) * 100
+    private var merged: [TrendPoint] {
+        let weight = weightProgression.map { TrendPoint(date: $0.date, value: $0.value, mode: "Weight") }
+        let pin = pinProgression.map { TrendPoint(date: $0.date, value: $0.value, mode: "Pin") }
+        return (weight + pin).sorted { $0.date < $1.date }
     }
+
+    private var latestWeight: Double? { weightProgression.last?.value }
+    private var latestPin: Double? { pinProgression.last?.value }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: theme.spacing.l) {
                 DKCard(theme: theme) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: theme.spacing.xs) {
-                            Text("Latest e1RM")
-                                .font(theme.typography.caption)
-                                .foregroundStyle(theme.colors.textSecondary)
-                            Text("\(Int(latest))")
-                                .font(theme.typography.titleLarge)
+                    VStack(alignment: .leading, spacing: theme.spacing.s) {
+                        if let w = latestWeight {
+                            Text("Latest weighted e1RM: \(Int(w))")
+                                .font(theme.typography.body)
                                 .foregroundStyle(theme.colors.textPrimary)
                         }
-                        Spacer()
-                        VStack(alignment: .trailing, spacing: theme.spacing.xs) {
-                            Text("Best")
-                                .font(theme.typography.caption)
-                                .foregroundStyle(theme.colors.textSecondary)
-                            Text("\(Int(best))")
-                                .font(theme.typography.title)
+                        if let p = latestPin {
+                            Text("Latest pin position: \(Int(p))")
+                                .font(theme.typography.body)
                                 .foregroundStyle(theme.colors.textPrimary)
-                            Text(String(format: "%+.1f%%", deltaPercent))
-                                .font(theme.typography.caption)
-                                .foregroundStyle(deltaPercent >= 0 ? theme.colors.success : theme.colors.danger)
+                        }
+                        if latestWeight == nil && latestPin == nil {
+                            Text("No data yet for this workout.")
+                                .font(theme.typography.body)
+                                .foregroundStyle(theme.colors.textSecondary)
                         }
                     }
                 }
@@ -372,24 +418,28 @@ private struct WorkoutTrendDetailView: View {
                             .font(theme.typography.headline)
                             .foregroundStyle(theme.colors.textPrimary)
 
-                        if progression.isEmpty {
+                        if merged.isEmpty {
                             Text("No data yet for this workout.")
                                 .font(theme.typography.body)
                                 .foregroundStyle(theme.colors.textSecondary)
                         } else {
-                            Chart(progression, id: \.date) { point in
+                            Chart(merged) { point in
                                 LineMark(
                                     x: .value("Date", point.date),
-                                    y: .value("e1RM", point.value)
+                                    y: .value(point.mode, point.value)
                                 )
-                                .foregroundStyle(theme.charts.chart2)
+                                .foregroundStyle(by: .value("Mode", point.mode))
 
                                 PointMark(
                                     x: .value("Date", point.date),
-                                    y: .value("e1RM", point.value)
+                                    y: .value(point.mode, point.value)
                                 )
-                                .foregroundStyle(theme.charts.chart2)
+                                .foregroundStyle(by: .value("Mode", point.mode))
                             }
+                            .chartForegroundStyleScale([
+                                "Weight": theme.charts.chart2,
+                                "Pin": theme.charts.chart3
+                            ])
                             .dkChartStyle(theme: theme)
                             .frame(height: 220)
                         }

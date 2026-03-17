@@ -60,20 +60,21 @@ final class TrainViewModel: ObservableObject {
         cardioDurationMinutes: Double? = nil,
         cardioSpeedDescription: String? = nil,
         cardioZoneDescription: String? = nil,
+        pinPosition: String? = nil,
         to loggedExercise: LoggedExercise,
         context: ModelContext
     ) throws {
         guard reps > 0 else { throw TrainError.invalidReps }
         guard weight >= 0 else { throw TrainError.invalidWeight }
 
-        let set = LoggedSet(reps: reps, weight: weight, isWarmup: isWarmup, cardioDurationMinutes: cardioDurationMinutes, cardioSpeedDescription: cardioSpeedDescription, cardioZoneDescription: cardioZoneDescription, loggedExercise: loggedExercise)
+        let set = LoggedSet(reps: reps, weight: weight, isWarmup: isWarmup, cardioDurationMinutes: cardioDurationMinutes, cardioSpeedDescription: cardioSpeedDescription, cardioZoneDescription: cardioZoneDescription, pinPosition: pinPosition, loggedExercise: loggedExercise)
         context.insert(set)
         loggedExercise.sets.append(set)
         try context.save()
         refreshCoverage()
     }
 
-    func updateSet(_ set: LoggedSet, reps: Int, weight: Double, isWarmup: Bool, cardioDurationMinutes: Double? = nil, cardioSpeedDescription: String? = nil, cardioZoneDescription: String? = nil, context: ModelContext) throws {
+    func updateSet(_ set: LoggedSet, reps: Int, weight: Double, isWarmup: Bool, cardioDurationMinutes: Double? = nil, cardioSpeedDescription: String? = nil, cardioZoneDescription: String? = nil, pinPosition: String? = nil, context: ModelContext) throws {
         guard reps > 0 else { throw TrainError.invalidReps }
         guard weight >= 0 else { throw TrainError.invalidWeight }
 
@@ -83,6 +84,7 @@ final class TrainViewModel: ObservableObject {
         set.cardioDurationMinutes = cardioDurationMinutes
         set.cardioSpeedDescription = cardioSpeedDescription
         set.cardioZoneDescription = cardioZoneDescription
+        set.pinPosition = pinPosition
         try context.save()
         refreshCoverage()
     }
