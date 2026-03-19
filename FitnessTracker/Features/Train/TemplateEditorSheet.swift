@@ -18,17 +18,14 @@ struct TemplateEditorSheet: View {
     @State private var customExerciseName = ""
     @State private var customExerciseCategory = "Custom"
     @State private var customExerciseEquipment = "Machine"
+    @State private var expandedCategories: Set<String> = []
 
     private let quickCardio = ["Incline Treadmill Walk", "Jogging", "Cycling", "Rowing", "Hiking"]
 
     private var theme: Theme { themeManager.theme(for: colorScheme) }
 
-    private var filteredExercises: [Exercise] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !query.isEmpty else { return exercises }
-        return exercises.filter {
-            $0.name.lowercased().contains(query) || $0.category.lowercased().contains(query)
-        }
+    private var groupedFilteredExercises: [(category: String, items: [Exercise])] {
+        exercises.groupedByCategory(filter: searchText)
     }
 
 
@@ -133,22 +130,42 @@ struct TemplateEditorSheet: View {
                     }
                 }
 
-                Section("All Exercises") {
-                    ForEach(filteredExercises) { exercise in
-                        let isInTemplate = split.templateExercises.contains { $0.id == exercise.id }
-                        if !isInTemplate {
-                            Button {
-                                split.templateExercises.append(exercise)
-                                try? modelContext.save()
-                            } label: {
-                                VStack(alignment: .leading) {
-                                    Text(exercise.name)
-                                    Text(exercise.category)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                ForEach(groupedFilteredExercises, id: \.category) { group in
+                    Section {
+                        DisclosureGroup(
+                            isExpanded: Binding(
+                                get: {
+                                    !searchText.isEmpty || expandedCategories.contains(group.category)
+                                },
+                                set: { isExpanded in
+                                    if isExpanded {
+                                        expandedCategories.insert(group.category)
+                                    } else {
+                                        expandedCategories.remove(group.category)
+                                    }
+                                }
+                            )
+                        ) {
+                            ForEach(group.items) { exercise in
+                                let isInTemplate = split.templateExercises.contains { $0.id == exercise.id }
+                                if !isInTemplate {
+                                    Button {
+                                        split.templateExercises.append(exercise)
+                                        try? modelContext.save()
+                                    } label: {
+                                        VStack(alignment: .leading) {
+                                            Text(exercise.name)
+                                            Text(exercise.equipment)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
                                 }
                             }
-                            .buttonStyle(.plain)
+                        } label: {
+                            Text(group.category)
+                                .font(theme.typography.headline)
                         }
                     }
                 }

@@ -286,7 +286,7 @@ private struct DayHistorySheet: View {
                                             }
                                         }
 
-                                        Text("Volume \(Int(StatsEngine.totalSessionVolume(session))) lbs")
+                                        Text(sessionVolumeLabel(session))
                                             .font(resolvedTheme.typography.body)
                                             .foregroundStyle(resolvedTheme.colors.textSecondary)
                                     }
@@ -303,6 +303,18 @@ private struct DayHistorySheet: View {
             .background(resolvedTheme.colors.background.ignoresSafeArea())
             .navigationTitle(date.formatted(date: .abbreviated, time: .omitted))
         }
+    }
+
+    private func sessionVolumeLabel(_ session: WorkoutSession) -> String {
+        let unit = dominantWeightUnit(for: session)
+        return "Volume \(Int(StatsEngine.totalSessionVolume(session))) \(unit)"
+    }
+
+    private func dominantWeightUnit(for session: WorkoutSession) -> String {
+        let allSets = session.loggedExercises.flatMap(\.sets)
+        let units = allSets.map(\.weightUnit)
+        let counts = Dictionary(grouping: units, by: { $0 }).mapValues(\.count)
+        return counts.max(by: { $0.value < $1.value })?.key ?? "lbs"
     }
 
     private func sessionDuration(_ session: WorkoutSession) -> String? {
@@ -327,6 +339,10 @@ private struct SessionDetailView: View {
         themeManager.theme(for: colorScheme)
     }
 
+    private var currentUserUnit: WeightUnit {
+        WeightUnitSettings.load()
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: theme.spacing.l) {
@@ -343,9 +359,24 @@ private struct SessionDetailView: View {
                                 .font(theme.typography.caption)
                                 .foregroundStyle(theme.colors.textSecondary)
                         }
-                        Text("Volume: \(Int(StatsEngine.totalSessionVolume(session))) lbs")
+                        let unit = dominantWeightUnit
+                        Text("Volume: \(Int(StatsEngine.totalSessionVolume(session))) \(unit)")
                             .font(theme.typography.body)
                             .foregroundStyle(theme.colors.textSecondary)
+                    }
+                }
+
+                // Phase 6: Display notes if non-empty
+                if !session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    DKCard(theme: theme) {
+                        VStack(alignment: .leading, spacing: theme.spacing.s) {
+                            Text("Notes")
+                                .font(theme.typography.headline)
+                                .foregroundStyle(theme.colors.textPrimary)
+                            Text(session.notes)
+                                .font(theme.typography.body)
+                                .foregroundStyle(theme.colors.textSecondary)
+                        }
                     }
                 }
 
@@ -356,7 +387,8 @@ private struct SessionDetailView: View {
                                 .font(theme.typography.headline)
                                 .foregroundStyle(theme.colors.textPrimary)
 
-                            Text("Sets \(logged.sets.count) • Volume \(Int(StatsEngine.exerciseVolume(logged))) lbs")
+                            let exerciseUnit = logged.sets.first(where: { !$0.isWarmup })?.weightUnit ?? "lbs"
+                            Text("Sets \(logged.sets.count) • Volume \(Int(StatsEngine.exerciseVolume(logged))) \(exerciseUnit)")
                                 .font(theme.typography.caption)
                                 .foregroundStyle(theme.colors.textSecondary)
 
@@ -365,7 +397,7 @@ private struct SessionDetailView: View {
                                 HStack(spacing: theme.spacing.xs) {
                                     Text(set.isWarmup ? "W" : "•")
                                         .foregroundStyle(set.isWarmup ? theme.colors.textTertiary : theme.colors.accentPrimary)
-                                    Text("\(String(format: "%g", set.weight)) lbs × \(set.reps)")
+                                    Text(setDisplayLabel(set))
                                         .foregroundStyle(theme.colors.textPrimary)
                                     Spacer()
                                 }
@@ -381,6 +413,30 @@ private struct SessionDetailView: View {
         }
         .background(theme.colors.background.ignoresSafeArea())
         .navigationTitle("Session")
+    }
+
+    private func setDisplayLabel(_ set: LoggedSet) -> String {
+        if let pin = set.pinPosition, !pin.isEmpty {
+            return "\(pin) × \(set.reps)"
+        }
+
+        let storedUnit = set.weightUnit
+        let base = "\(String(format: "%g", set.weight)) \(storedUnit) × \(set.reps)"
+
+        // Show conversion hint if user's current unit differs from stored unit
+        if let stored = WeightUnit(rawValue: storedUnit), stored != currentUserUnit {
+            let converted = WeightUnitSettings.convert(set.weight, from: stored, to: currentUserUnit)
+            return "\(base) (\u{2248} \(String(format: "%.0f", converted)) \(currentUserUnit.displayName))"
+        }
+
+        return base
+    }
+
+    private var dominantWeightUnit: String {
+        let allSets = session.loggedExercises.flatMap(\.sets)
+        let units = allSets.map(\.weightUnit)
+        let counts = Dictionary(grouping: units, by: { $0 }).mapValues(\.count)
+        return counts.max(by: { $0.value < $1.value })?.key ?? "lbs"
     }
 
     private var sessionDuration: String? {

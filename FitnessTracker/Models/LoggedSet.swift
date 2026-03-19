@@ -12,6 +12,7 @@ final class LoggedSet {
     var cardioSpeedDescription: String?
     var cardioZoneDescription: String?
     var pinPosition: String?
+    var weightUnit: String = "lbs"
 
     var loggedExercise: LoggedExercise?
 
@@ -25,6 +26,7 @@ final class LoggedSet {
         cardioSpeedDescription: String? = nil,
         cardioZoneDescription: String? = nil,
         pinPosition: String? = nil,
+        weightUnit: String = "lbs",
         loggedExercise: LoggedExercise? = nil
     ) {
         self.id = id
@@ -36,6 +38,7 @@ final class LoggedSet {
         self.cardioSpeedDescription = cardioSpeedDescription
         self.cardioZoneDescription = cardioZoneDescription
         self.pinPosition = pinPosition
+        self.weightUnit = weightUnit
         self.loggedExercise = loggedExercise
     }
 

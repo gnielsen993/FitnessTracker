@@ -2,9 +2,14 @@ import Foundation
 import SwiftData
 
 final class SeedDataService {
+    private static let seedCompletedKey = "seed.v1.completed"
     private let decoder = JSONDecoder()
 
     func seedIfNeeded(context: ModelContext) throws {
+        if UserDefaults.standard.bool(forKey: Self.seedCompletedKey) {
+            return
+        }
+
         let existing = try context.fetch(FetchDescriptor<Exercise>())
 
         #if SWIFT_PACKAGE
@@ -105,6 +110,7 @@ final class SeedDataService {
         addStarterExercises(to: "Full Body", categories: ["chest", "triceps", "shoulders", "back", "biceps", "legs", "core"])
 
         try context.save()
+        UserDefaults.standard.set(true, forKey: Self.seedCompletedKey)
     }
 }
 

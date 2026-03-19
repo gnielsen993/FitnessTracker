@@ -25,6 +25,36 @@ final class TrainViewModel: ObservableObject {
         try context.save()
     }
 
+    func resumeActiveSession(context: ModelContext) {
+        var descriptor = FetchDescriptor<WorkoutSession>(
+            predicate: #Predicate<WorkoutSession> { $0.endedAt == nil }
+        )
+        descriptor.sortBy = [SortDescriptor(\WorkoutSession.startedAt, order: .reverse)]
+
+        guard let orphans = try? context.fetch(descriptor), !orphans.isEmpty else { return }
+
+        // Resume the most recent; end any others as orphans.
+        let latest = orphans[0]
+        activeSession = latest
+        selectedSplit = latest.workoutType
+
+        for session in orphans.dropFirst() {
+            session.endedAt = session.startedAt
+        }
+        try? context.save()
+
+        refreshCoverage()
+    }
+
+    func abandonWorkout(context: ModelContext) throws {
+        guard let session = activeSession else { return }
+        // Delete the session and all its logged exercises/sets (cascade).
+        context.delete(session)
+        try context.save()
+        activeSession = nil
+        coverageReport = nil
+    }
+
     func refreshCoverage() {
         guard let session = activeSession, let split = selectedSplit else { return }
         coverageReport = CoverageEngine.buildReport(for: session, split: split)
@@ -61,20 +91,21 @@ final class TrainViewModel: ObservableObject {
         cardioSpeedDescription: String? = nil,
         cardioZoneDescription: String? = nil,
         pinPosition: String? = nil,
+        weightUnit: String = "lbs",
         to loggedExercise: LoggedExercise,
         context: ModelContext
     ) throws {
         guard reps > 0 else { throw TrainError.invalidReps }
         guard weight >= 0 else { throw TrainError.invalidWeight }
 
-        let set = LoggedSet(reps: reps, weight: weight, isWarmup: isWarmup, cardioDurationMinutes: cardioDurationMinutes, cardioSpeedDescription: cardioSpeedDescription, cardioZoneDescription: cardioZoneDescription, pinPosition: pinPosition, loggedExercise: loggedExercise)
+        let set = LoggedSet(reps: reps, weight: weight, isWarmup: isWarmup, cardioDurationMinutes: cardioDurationMinutes, cardioSpeedDescription: cardioSpeedDescription, cardioZoneDescription: cardioZoneDescription, pinPosition: pinPosition, weightUnit: weightUnit, loggedExercise: loggedExercise)
         context.insert(set)
         loggedExercise.sets.append(set)
         try context.save()
         refreshCoverage()
     }
 
-    func updateSet(_ set: LoggedSet, reps: Int, weight: Double, isWarmup: Bool, cardioDurationMinutes: Double? = nil, cardioSpeedDescription: String? = nil, cardioZoneDescription: String? = nil, pinPosition: String? = nil, context: ModelContext) throws {
+    func updateSet(_ set: LoggedSet, reps: Int, weight: Double, isWarmup: Bool, cardioDurationMinutes: Double? = nil, cardioSpeedDescription: String? = nil, cardioZoneDescription: String? = nil, pinPosition: String? = nil, weightUnit: String = "lbs", context: ModelContext) throws {
         guard reps > 0 else { throw TrainError.invalidReps }
         guard weight >= 0 else { throw TrainError.invalidWeight }
 
@@ -85,6 +116,7 @@ final class TrainViewModel: ObservableObject {
         set.cardioSpeedDescription = cardioSpeedDescription
         set.cardioZoneDescription = cardioZoneDescription
         set.pinPosition = pinPosition
+        set.weightUnit = weightUnit
         try context.save()
         refreshCoverage()
     }
@@ -103,12 +135,29 @@ final class TrainViewModel: ObservableObject {
         activeSession = nil
         coverageReport = nil
     }
+
+    func deleteRoutine(_ routine: WorkoutType, context: ModelContext) throws {
+        if let session = activeSession, session.workoutType?.id == routine.id {
+            throw TrainError.cannotDeleteActiveRoutine
+        }
+
+        if selectedSplit?.id == routine.id {
+            selectedSplit = nil
+        }
+
+        // The inverse relationship on WorkoutType.sessions auto-nils
+        // workoutType on all referencing sessions when this routine is deleted.
+        BootstrapService.markRoutineDeleted(routine.name)
+        context.delete(routine)
+        try context.save()
+    }
 }
 
 enum TrainError: LocalizedError {
     case exerciseAlreadyAdded
     case invalidReps
     case invalidWeight
+    case cannotDeleteActiveRoutine
 
     var errorDescription: String? {
         switch self {
@@ -118,6 +167,8 @@ enum TrainError: LocalizedError {
             return "Reps must be greater than 0."
         case .invalidWeight:
             return "Weight cannot be negative."
+        case .cannotDeleteActiveRoutine:
+            return "Cannot delete a routine while it's being used in an active workout."
         }
     }
 }

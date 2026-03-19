@@ -33,9 +33,17 @@ struct TrainView: View {
     @State private var setUsesPinTracking = false
     @State private var setPinPosition = "8th pin"
     @State private var errorMessage: String?
+    @State private var showingConverter = false
+    @State private var pendingTemplateEdit = false
+    @State private var routineToDelete: WorkoutType?
 
     @State private var restRemainingSeconds = 0
     @State private var restTimer: Timer?
+
+    // Phase 2: Inline set logging state per exercise
+    @State private var inlineWeight: [UUID: String] = [:]
+    @State private var inlineReps: [UUID: String] = [:]
+    @State private var inlineIsWarmup: [UUID: Bool] = [:]
 
     private let lastRoutineDefaultsKey = "train.lastRoutineID"
 
@@ -44,18 +52,7 @@ struct TrainView: View {
     }
 
     private var groupedFilteredExercises: [(category: String, items: [Exercise])] {
-        let query = exerciseSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let filtered = exercises.filter { exercise in
-            guard !query.isEmpty else { return true }
-            return exercise.name.lowercased().contains(query)
-                || exercise.category.lowercased().contains(query)
-                || exercise.equipment.lowercased().contains(query)
-        }
-
-        let grouped = Dictionary(grouping: filtered) { $0.category }
-        return grouped.keys.sorted().map { key in
-            (category: key, items: grouped[key]?.sorted(by: { $0.name < $1.name }) ?? [])
-        }
+        exercises.groupedByCategory(filter: exerciseSearchText)
     }
 
     private var formattedRest: String {
@@ -66,61 +63,105 @@ struct TrainView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: theme.spacing.l) {
-                    splitPicker
+            ZStack(alignment: .bottom) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: theme.spacing.l) {
+                        splitPicker
 
-                    if viewModel.activeSession != nil {
-                        routineProgressCard
-                    }
-
-                    if let report = viewModel.coverageReport {
-                        Button {
-                            showingCoverageDetails = true
-                        } label: {
-                            CoverageCardView(report: report, theme: theme)
+                        if viewModel.activeSession != nil {
+                            routineProgressCard
                         }
-                        .buttonStyle(.plain)
-                    }
 
-                    workoutControls
+                        if let report = viewModel.coverageReport {
+                            Button {
+                                showingCoverageDetails = true
+                            } label: {
+                                CoverageCardView(report: report, theme: theme)
+                            }
+                            .buttonStyle(.plain)
+                        }
 
-                    if viewModel.activeSession != nil {
-                        restCard
-                    }
+                        workoutControls
 
-                    if let session = viewModel.activeSession {
-                        DKCard(theme: theme) {
-                            VStack(alignment: .leading, spacing: theme.spacing.m) {
-                                Text("Logged Exercises")
-                                    .font(theme.typography.headline)
-                                    .foregroundStyle(theme.colors.textPrimary)
-
-                                if session.loggedExercises.isEmpty {
-                                    Text("Add an exercise to begin logging sets.")
-                                        .font(theme.typography.body)
-                                        .foregroundStyle(theme.colors.textSecondary)
+                        // Phase 6: Workout notes
+                        if let session = viewModel.activeSession {
+                            DKCard(theme: theme) {
+                                DisclosureGroup {
+                                    TextEditor(text: Binding(
+                                        get: { session.notes },
+                                        set: { session.notes = $0; try? modelContext.save() }
+                                    ))
+                                    .frame(minHeight: 60)
+                                    .font(theme.typography.body)
+                                    .scrollContentBackground(.hidden)
+                                } label: {
+                                    Text("Notes")
+                                        .font(theme.typography.headline)
+                                        .foregroundStyle(theme.colors.textPrimary)
                                 }
+                            }
+                        }
 
-                                ForEach(session.loggedExercises.sorted(by: { $0.orderIndex < $1.orderIndex })) { logged in
-                                    exerciseRow(for: logged)
-                                        .padding(.vertical, theme.spacing.xs)
+                        if let session = viewModel.activeSession {
+                            DKCard(theme: theme) {
+                                VStack(alignment: .leading, spacing: theme.spacing.m) {
+                                    Text("Logged Exercises")
+                                        .font(theme.typography.headline)
+                                        .foregroundStyle(theme.colors.textPrimary)
+
+                                    if session.loggedExercises.isEmpty {
+                                        Text("Add an exercise to begin logging sets.")
+                                            .font(theme.typography.body)
+                                            .foregroundStyle(theme.colors.textSecondary)
+                                    }
+
+                                    ForEach(session.loggedExercises.sorted(by: { $0.orderIndex < $1.orderIndex })) { logged in
+                                        exerciseRow(for: logged)
+                                            .padding(.vertical, theme.spacing.xs)
+                                    }
                                 }
                             }
                         }
                     }
+                    .padding(.vertical, theme.spacing.l)
+                    .padding(.horizontal, theme.spacing.s)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // Extra bottom padding so content isn't hidden behind floating timer
+                    .padding(.bottom, viewModel.activeSession != nil && restRemainingSeconds > 0 ? 60 : 0)
                 }
-                .padding(.vertical, theme.spacing.l)
-                .padding(.horizontal, theme.spacing.s)
-                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Phase 4: Floating rest timer pill
+                if viewModel.activeSession != nil && restRemainingSeconds > 0 {
+                    floatingRestTimerPill
+                        .padding(.bottom, theme.spacing.m)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
             .background(theme.colors.background.ignoresSafeArea())
             .navigationTitle("Train")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("New Routine") {
-                        showingNewRoutineSheet = true
+                    HStack(spacing: 12) {
+                        Button {
+                            showingConverter = true
+                        } label: {
+                            Image(systemName: "scalemass")
+                        }
+                        Button("New Routine") {
+                            showingNewRoutineSheet = true
+                        }
                     }
+                }
+            }
+            .sheet(isPresented: $showingConverter) {
+                NavigationStack {
+                    WeightConverterView()
+                        .environmentObject(themeManager)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") { showingConverter = false }
+                            }
+                        }
                 }
             }
             .sheet(isPresented: $showingExercisePicker) {
@@ -143,6 +184,30 @@ struct TrainView: View {
             } message: {
                 Text(errorMessage ?? "Unknown error")
             }
+            .confirmationDialog(
+                "Delete \"\(routineToDelete?.name ?? "Routine")\"?",
+                isPresented: Binding(
+                    get: { routineToDelete != nil },
+                    set: { if !$0 { routineToDelete = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    guard let routine = routineToDelete else { return }
+                    routineToDelete = nil
+                    do {
+                        try viewModel.deleteRoutine(routine, context: modelContext)
+                        persistLastSelectedRoutine()
+                    } catch {
+                        errorMessage = error.localizedDescription
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    routineToDelete = nil
+                }
+            } message: {
+                Text("This routine will be removed. Past workouts will keep their data but lose the routine label.")
+            }
             .sheet(
                 isPresented: Binding(
                     get: { setEditorTarget != nil },
@@ -157,9 +222,19 @@ struct TrainView: View {
                 restDurationSeconds = RestTimerSettings.load()
                 selectedWeightUnit = WeightUnitSettings.load()
                 restoreLastSelectedRoutine()
+                // Phase 1C: Resume active session on appear
+                if viewModel.activeSession == nil {
+                    viewModel.resumeActiveSession(context: modelContext)
+                }
             }
             .onChange(of: viewModel.selectedSplit?.id) { _, _ in
                 persistLastSelectedRoutine()
+            }
+            .onChange(of: showingNewRoutineSheet) { _, isShowing in
+                if !isShowing && pendingTemplateEdit {
+                    pendingTemplateEdit = false
+                    showingTemplatePicker = true
+                }
             }
             .onChange(of: workoutTypes.count) { _, _ in
                 restoreLastSelectedRoutine()
@@ -265,6 +340,7 @@ struct TrainView: View {
                         modelContext.insert(routine)
                         try? modelContext.save()
                         viewModel.selectedSplit = routine
+                        pendingTemplateEdit = true
                         showingNewRoutineSheet = false
                         newRoutineName = ""
                     }
@@ -301,6 +377,35 @@ struct TrainView: View {
             split.templateExercises.append(exercise)
         }
         try? modelContext.save()
+    }
+
+    // MARK: - Phase 3: Previous performance
+
+    private func lastSessionSets(for exercise: Exercise) -> [LoggedSet]? {
+        let activeSessionId = viewModel.activeSession?.id
+        let completedSessions = sessions.filter { session in
+            session.endedAt != nil && session.id != activeSessionId
+        }
+        for session in completedSessions {
+            let matching = session.loggedExercises.first(where: { $0.exercise?.id == exercise.id })
+            if let matching, !matching.sets.isEmpty {
+                return matching.sets.sorted { $0.createdAt < $1.createdAt }
+            }
+        }
+        return nil
+    }
+
+    private func previousPerformanceSummary(for exercise: Exercise) -> String? {
+        guard let sets = lastSessionSets(for: exercise) else { return nil }
+        let workingSets = sets.filter { !$0.isWarmup }
+        guard !workingSets.isEmpty else { return nil }
+        let descriptions = workingSets.map { set in
+            if let pin = set.pinPosition, !pin.isEmpty {
+                return "\(pin)x\(set.reps)"
+            }
+            return "\(String(format: "%g", set.weight))x\(set.reps)"
+        }
+        return "Last: " + descriptions.joined(separator: ", ")
     }
 
     // MARK: - Exercise row
@@ -345,6 +450,13 @@ struct TrainView: View {
                 }
             }
 
+            // Phase 3: Previous performance
+            if let exercise = logged.exercise, let prevSummary = previousPerformanceSummary(for: exercise) {
+                Text(prevSummary)
+                    .font(theme.typography.caption)
+                    .foregroundStyle(theme.colors.textTertiary)
+            }
+
             HStack(spacing: theme.spacing.s) {
                 Text(exerciseProgressSummary(logged))
                     .font(theme.typography.caption)
@@ -384,6 +496,114 @@ struct TrainView: View {
                 }
                 .buttonStyle(.plain)
             }
+
+            // Phase 2: Inline quick-add row (non-cardio, non-pin exercises only)
+            if let exercise = logged.exercise,
+               exercise.category != "Cardio",
+               !logged.sets.contains(where: { ($0.pinPosition?.isEmpty == false) }) {
+                inlineSetRow(for: logged)
+            }
+        }
+    }
+
+    // MARK: - Phase 2: Inline set logging
+
+    @ViewBuilder
+    private func inlineSetRow(for logged: LoggedExercise) -> some View {
+        let exerciseId = logged.id
+        HStack(spacing: theme.spacing.xs) {
+            Button {
+                let current = inlineIsWarmup[exerciseId] ?? false
+                inlineIsWarmup[exerciseId] = !current
+            } label: {
+                Text(inlineIsWarmup[exerciseId] == true ? "W" : "•")
+                    .font(theme.typography.caption)
+                    .foregroundStyle(inlineIsWarmup[exerciseId] == true ? theme.colors.textTertiary : theme.colors.accentPrimary)
+                    .frame(width: 20)
+            }
+            .buttonStyle(.plain)
+
+            TextField("wt", text: Binding(
+                get: { inlineWeight[exerciseId] ?? defaultInlineWeight(for: logged) },
+                set: { inlineWeight[exerciseId] = $0 }
+            ))
+            .font(theme.typography.caption)
+#if os(iOS)
+            .keyboardType(.decimalPad)
+#endif
+            .textFieldStyle(.roundedBorder)
+            .frame(maxWidth: 70)
+
+            Text(selectedWeightUnit.displayName)
+                .font(theme.typography.caption)
+                .foregroundStyle(theme.colors.textTertiary)
+
+            Text("×")
+                .font(theme.typography.caption)
+                .foregroundStyle(theme.colors.textTertiary)
+
+            TextField("reps", text: Binding(
+                get: { inlineReps[exerciseId] ?? defaultInlineReps(for: logged) },
+                set: { inlineReps[exerciseId] = $0 }
+            ))
+            .font(theme.typography.caption)
+#if os(iOS)
+            .keyboardType(.numberPad)
+#endif
+            .textFieldStyle(.roundedBorder)
+            .frame(maxWidth: 50)
+
+            Button {
+                saveInlineSet(for: logged)
+            } label: {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(theme.colors.accentPrimary)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func defaultInlineWeight(for logged: LoggedExercise) -> String {
+        if let last = logged.sets.sorted(by: { $0.createdAt < $1.createdAt }).last {
+            return String(format: "%g", last.weight)
+        }
+        return "45"
+    }
+
+    private func defaultInlineReps(for logged: LoggedExercise) -> String {
+        if let last = logged.sets.sorted(by: { $0.createdAt < $1.createdAt }).last {
+            return String(last.reps)
+        }
+        return "10"
+    }
+
+    private func saveInlineSet(for logged: LoggedExercise) {
+        let exerciseId = logged.id
+        let weightStr = inlineWeight[exerciseId] ?? defaultInlineWeight(for: logged)
+        let repsStr = inlineReps[exerciseId] ?? defaultInlineReps(for: logged)
+        let warmup = inlineIsWarmup[exerciseId] ?? false
+
+        guard let weight = Double(weightStr), let reps = Int(repsStr), reps > 0 else {
+            errorMessage = "Enter valid weight and reps."
+            return
+        }
+
+        do {
+            try viewModel.addSet(
+                reps: reps,
+                weight: weight,
+                isWarmup: warmup,
+                weightUnit: selectedWeightUnit.rawValue,
+                to: logged,
+                context: modelContext
+            )
+            // Reset inline state and pre-fill from new last set
+            inlineWeight.removeValue(forKey: exerciseId)
+            inlineReps.removeValue(forKey: exerciseId)
+            inlineIsWarmup.removeValue(forKey: exerciseId)
+            if !warmup { startRestTimer() }
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -391,7 +611,8 @@ struct TrainView: View {
         if logged.sets.contains(where: { ($0.pinPosition?.isEmpty == false) }) {
             return "Target \(logged.targetWorkingSets) sets • Logged \(workingSetCount(for: logged)) • Pin tracking"
         }
-        return "Target \(logged.targetWorkingSets) sets • Logged \(workingSetCount(for: logged)) • Volume \(Int(StatsEngine.exerciseVolume(logged))) \(selectedWeightUnit.displayName)"
+        let unit = logged.sets.last?.weightUnit ?? selectedWeightUnit.rawValue
+        return "Target \(logged.targetWorkingSets) sets • Logged \(workingSetCount(for: logged)) • Volume \(Int(StatsEngine.exerciseVolume(logged))) \(unit)"
     }
 
     private func cardioSetSummary(_ set: LoggedSet, for logged: LoggedExercise) -> String {
@@ -407,7 +628,7 @@ struct TrainView: View {
             return "\(pin) × \(set.reps)"
         }
 
-        return "\(String(format: "%g", set.weight)) \(selectedWeightUnit.displayName) × \(set.reps)"
+        return "\(String(format: "%g", set.weight)) \(set.weightUnit) × \(set.reps)"
     }
 
     private func openSetEditor(for set: LoggedSet?, in logged: LoggedExercise) {
@@ -486,6 +707,16 @@ struct TrainView: View {
                         .font(theme.typography.caption)
                         .foregroundStyle(theme.colors.textSecondary)
                     }
+
+                    Button(role: .destructive) {
+                        routineToDelete = split
+                    } label: {
+                        HStack(spacing: theme.spacing.xs) {
+                            Image(systemName: "trash")
+                            Text("Delete Routine")
+                        }
+                        .font(theme.typography.caption)
+                    }
                 }
             }
         }
@@ -524,39 +755,65 @@ struct TrainView: View {
                 }
 
                 if viewModel.activeSession != nil {
-                    Text("Coverage updates instantly as you log working sets.")
-                        .font(theme.typography.caption)
-                        .foregroundStyle(theme.colors.textSecondary)
+                    HStack(spacing: theme.spacing.s) {
+                        // Phase 1C: Abandon workout button
+                        Button(role: .destructive) {
+                            do {
+                                try viewModel.abandonWorkout(context: modelContext)
+                                stopRestTimer()
+                            } catch {
+                                errorMessage = error.localizedDescription
+                            }
+                        } label: {
+                            Text("Abandon Workout")
+                                .font(theme.typography.caption)
+                                .foregroundStyle(.red)
+                        }
+
+                        Spacer()
+
+                        Text("Coverage updates instantly as you log working sets.")
+                            .font(theme.typography.caption)
+                            .foregroundStyle(theme.colors.textSecondary)
+                    }
                 }
             }
         }
     }
 
-    // MARK: - Rest timer
+    // MARK: - Phase 4: Floating rest timer pill
 
-    private var restCard: some View {
-        DKCard(theme: theme) {
-            HStack(spacing: theme.spacing.m) {
-                VStack(alignment: .leading, spacing: theme.spacing.xs) {
-                    Text("Rest Timer")
-                        .font(theme.typography.headline)
-                        .foregroundStyle(theme.colors.textPrimary)
-                    Text("Auto-start: \(Int(restDurationSeconds)) sec")
-                        .font(theme.typography.caption)
-                        .foregroundStyle(theme.colors.textSecondary)
-                }
-                Spacer()
-                Text(formattedRest)
-                    .font(theme.typography.title)
-                    .foregroundStyle(theme.colors.accentPrimary)
-
-                Button(restRemainingSeconds > 0 ? "Reset" : "Start") {
-                    startRestTimer()
-                }
-                .font(theme.typography.caption)
+    private var floatingRestTimerPill: some View {
+        HStack(spacing: theme.spacing.m) {
+            Image(systemName: "timer")
                 .foregroundStyle(theme.colors.accentPrimary)
+            Text(formattedRest)
+                .font(theme.typography.headline)
+                .foregroundStyle(theme.colors.textPrimary)
+                .monospacedDigit()
+            Button {
+                startRestTimer()
+            } label: {
+                Image(systemName: "arrow.counterclockwise")
+                    .foregroundStyle(theme.colors.accentPrimary)
             }
+            .buttonStyle(.plain)
+            Button {
+                stopRestTimer()
+                restRemainingSeconds = 0
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(theme.colors.textTertiary)
+            }
+            .buttonStyle(.plain)
         }
+        .padding(.horizontal, theme.spacing.l)
+        .padding(.vertical, theme.spacing.s)
+        .background(
+            Capsule()
+                .fill(theme.colors.surfaceElevated)
+                .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+        )
     }
 
     // MARK: - Exercise picker sheet
@@ -672,6 +929,25 @@ struct TrainView: View {
                     Toggle("Warm-up Set", isOn: $setIsWarmup)
                 }
 
+                // Phase 3: Previous session section in editor
+                if let exercise = loggedExercise.exercise, let prevSets = lastSessionSets(for: exercise) {
+                    Section("Previous Session") {
+                        ForEach(prevSets) { set in
+                            HStack(spacing: 4) {
+                                Text(set.isWarmup ? "W" : "•")
+                                    .foregroundStyle(set.isWarmup ? .secondary : .primary)
+                                if let pin = set.pinPosition, !pin.isEmpty {
+                                    Text("\(pin) × \(set.reps)")
+                                } else {
+                                    Text("\(String(format: "%g", set.weight)) \(set.weightUnit) × \(set.reps)")
+                                }
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
                 if let suggestion = progressiveSuggestion(for: loggedExercise) {
                     Section("Progressive Overload") {
                         Text(suggestion.message)
@@ -729,8 +1005,9 @@ struct TrainView: View {
                         do {
                             let reps = Int(setReps) ?? 0
                             let weight = setUsesPinTracking ? 0 : (Double(setWeight) ?? 0)
+                            let unit = selectedWeightUnit.rawValue
                             if let existing = editingSet {
-                                try viewModel.updateSet(existing, reps: reps, weight: weight, isWarmup: setIsWarmup, cardioDurationMinutes: Double(cardioDurationMinutes), cardioSpeedDescription: cardioSpeedDescription.trimmingCharacters(in: .whitespacesAndNewlines), cardioZoneDescription: cardioZoneDescription.trimmingCharacters(in: .whitespacesAndNewlines), pinPosition: setUsesPinTracking ? setPinPosition.trimmingCharacters(in: .whitespacesAndNewlines) : nil, context: modelContext)
+                                try viewModel.updateSet(existing, reps: reps, weight: weight, isWarmup: setIsWarmup, cardioDurationMinutes: Double(cardioDurationMinutes), cardioSpeedDescription: cardioSpeedDescription.trimmingCharacters(in: .whitespacesAndNewlines), cardioZoneDescription: cardioZoneDescription.trimmingCharacters(in: .whitespacesAndNewlines), pinPosition: setUsesPinTracking ? setPinPosition.trimmingCharacters(in: .whitespacesAndNewlines) : nil, weightUnit: unit, context: modelContext)
                             } else {
                                 try viewModel.addSet(
                                     reps: reps,
@@ -740,6 +1017,7 @@ struct TrainView: View {
                                     cardioSpeedDescription: cardioSpeedDescription.trimmingCharacters(in: .whitespacesAndNewlines),
                                     cardioZoneDescription: cardioZoneDescription.trimmingCharacters(in: .whitespacesAndNewlines),
                                     pinPosition: setUsesPinTracking ? setPinPosition.trimmingCharacters(in: .whitespacesAndNewlines) : nil,
+                                    weightUnit: unit,
                                     to: loggedExercise,
                                     context: modelContext
                                 )
@@ -808,6 +1086,13 @@ struct TrainView: View {
         restTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
             if restRemainingSeconds > 0 {
                 restRemainingSeconds -= 1
+                // Phase 4: Haptic feedback when timer hits 0
+                if restRemainingSeconds == 0 {
+#if os(iOS)
+                    let generator = UINotificationFeedbackGenerator()
+                    generator.notificationOccurred(.success)
+#endif
+                }
             } else {
                 timer.invalidate()
             }

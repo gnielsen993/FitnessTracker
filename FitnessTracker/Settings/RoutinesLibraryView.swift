@@ -45,6 +45,7 @@ struct RoutinesLibraryView: View {
                 }
                 .onDelete { offsets in
                     for index in offsets {
+                        BootstrapService.markRoutineDeleted(routines[index].name)
                         modelContext.delete(routines[index])
                     }
                     try? modelContext.save()

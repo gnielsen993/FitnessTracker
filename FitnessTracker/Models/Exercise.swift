@@ -29,3 +29,18 @@ final class Exercise {
         self.muscleMaps = muscleMaps
     }
 }
+
+extension Array where Element: Exercise {
+    func groupedByCategory(filter: String = "") -> [(category: String, items: [Exercise])] {
+        let query = filter.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let filtered: [Exercise] = query.isEmpty ? self : self.filter {
+            $0.name.lowercased().contains(query)
+                || $0.category.lowercased().contains(query)
+                || $0.equipment.lowercased().contains(query)
+        }
+        let grouped = Dictionary(grouping: filtered) { $0.category }
+        return grouped.keys.sorted().map { key in
+            (category: key, items: grouped[key]?.sorted(by: { $0.name < $1.name }) ?? [])
+        }
+    }
+}

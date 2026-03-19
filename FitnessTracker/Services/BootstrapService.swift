@@ -38,13 +38,28 @@ final class BootstrapService {
         return groupIndex
     }
 
+    private static let deletedRoutinesKey = "bootstrap.deletedRoutines"
+
+    /// Record that the user explicitly deleted a default routine so we don't re-seed it.
+    static func markRoutineDeleted(_ name: String) {
+        var deleted = UserDefaults.standard.stringArray(forKey: deletedRoutinesKey) ?? []
+        let key = name.lowercased()
+        if !deleted.contains(key) {
+            deleted.append(key)
+            UserDefaults.standard.set(deleted, forKey: deletedRoutinesKey)
+        }
+    }
+
     private func ensureDefaultRoutines(context: ModelContext, groups: [String: MuscleGroup]) throws {
         let existingRoutines = try context.fetch(FetchDescriptor<WorkoutType>())
         var routineIndex = Dictionary(uniqueKeysWithValues: existingRoutines.map { ($0.name.lowercased(), $0) })
+        let deletedByUser = Set(UserDefaults.standard.stringArray(forKey: Self.deletedRoutinesKey) ?? [])
 
         let allGroups = ["chest", "triceps", "shoulders", "back", "biceps", "legs", "core"].compactMap { groups[$0] }
 
         func ensureRoutine(_ name: String, _ groupKeys: [String]) {
+            guard !deletedByUser.contains(name.lowercased()) else { return }
+
             let targetGroups = groupKeys.compactMap { groups[$0] }
             if let existing = routineIndex[name.lowercased()] {
                 let existingIDs = Set(existing.includedMuscleGroups.map { $0.id })

@@ -102,6 +102,42 @@ struct SettingsView: View {
                                 }
                             }
                             .buttonStyle(.plain)
+
+                            NavigationLink {
+                                ExerciseLibraryView()
+                                    .environmentObject(themeManager)
+                            } label: {
+                                HStack {
+                                    Text("Manage exercises")
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    DKCard(theme: theme) {
+                        VStack(alignment: .leading, spacing: theme.spacing.m) {
+                            Text("Tools")
+                                .font(theme.typography.headline)
+                                .foregroundStyle(theme.colors.textPrimary)
+
+                            NavigationLink {
+                                WeightConverterView()
+                                    .environmentObject(themeManager)
+                            } label: {
+                                HStack {
+                                    Text("Weight converter")
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
 
