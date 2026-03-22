@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import SwiftData
+import ActivityKit
 
 @MainActor
 final class TrainViewModel: ObservableObject {
@@ -15,14 +16,23 @@ final class TrainViewModel: ObservableObject {
         selectedSplit = split
 
         // Auto-add template exercises so the user doesn't start from scratch every session.
-        for (index, exercise) in split.templateExercises.enumerated() {
-            let logged = LoggedExercise(orderIndex: index, targetWorkingSets: 3, isMarkedDone: false, session: session, exercise: exercise)
+        for item in split.sortedTemplateItems {
+            let logged = LoggedExercise(orderIndex: item.orderIndex, targetWorkingSets: item.defaultSets, isMarkedDone: false, session: session, exercise: item.exercise)
             context.insert(logged)
             session.loggedExercises.append(logged)
         }
 
         coverageReport = CoverageEngine.buildReport(for: session, split: split)
         try context.save()
+
+        let firstExerciseName = session.loggedExercises
+            .sorted(by: { $0.orderIndex < $1.orderIndex })
+            .first?.exercise?.name ?? "Workout"
+        WorkoutActivityManager.shared.startActivity(
+            routineName: split.name,
+            totalExercises: session.loggedExercises.count,
+            currentExerciseName: firstExerciseName
+        )
     }
 
     func resumeActiveSession(context: ModelContext) {
@@ -31,7 +41,12 @@ final class TrainViewModel: ObservableObject {
         )
         descriptor.sortBy = [SortDescriptor(\WorkoutSession.startedAt, order: .reverse)]
 
-        guard let orphans = try? context.fetch(descriptor), !orphans.isEmpty else { return }
+        let orphans = (try? context.fetch(descriptor)) ?? []
+
+        // Clean up any Live Activities left from a previous app session
+        WorkoutActivityManager.shared.cleanupOrphanedActivities(hasActiveWorkout: !orphans.isEmpty)
+
+        guard !orphans.isEmpty else { return }
 
         // Resume the most recent; end any others as orphans.
         let latest = orphans[0]
@@ -53,11 +68,33 @@ final class TrainViewModel: ObservableObject {
         try context.save()
         activeSession = nil
         coverageReport = nil
+        WorkoutActivityManager.shared.endActivity()
     }
 
     func refreshCoverage() {
         guard let session = activeSession, let split = selectedSplit else { return }
         coverageReport = CoverageEngine.buildReport(for: session, split: split)
+    }
+
+    func updateLiveActivity(restTimerEndDate: Date? = nil, restTimerFinished: Bool = false) {
+        guard let session = activeSession else { return }
+        let sorted = session.loggedExercises.sorted(by: { $0.orderIndex < $1.orderIndex })
+        let completed = sorted.filter { logged in
+            if logged.isMarkedDone { return true }
+            let workingSets = logged.sets.filter { !$0.isWarmup }.count
+            return workingSets >= max(1, logged.targetWorkingSets)
+        }.count
+        let currentExercise = sorted
+            .filter { !$0.sets.isEmpty }
+            .max(by: { ($0.sets.map(\.createdAt).max() ?? .distantPast) < ($1.sets.map(\.createdAt).max() ?? .distantPast) })
+            ?? sorted.first
+        WorkoutActivityManager.shared.updateActivity(
+            completedExercises: completed,
+            totalExercises: sorted.count,
+            currentExerciseName: currentExercise?.exercise?.name ?? "Done",
+            restTimerEndDate: restTimerEndDate,
+            restTimerFinished: restTimerFinished
+        )
     }
 
     func addExercise(_ exercise: Exercise, context: ModelContext) throws {
@@ -73,6 +110,29 @@ final class TrainViewModel: ObservableObject {
         session.loggedExercises.append(logged)
         try context.save()
         refreshCoverage()
+        updateLiveActivity()
+    }
+
+    func moveExerciseUp(_ loggedExercise: LoggedExercise, context: ModelContext) {
+        guard let session = activeSession else { return }
+        let sorted = session.loggedExercises.sorted(by: { $0.orderIndex < $1.orderIndex })
+        guard let idx = sorted.firstIndex(where: { $0.id == loggedExercise.id }), idx > 0 else { return }
+        let other = sorted[idx - 1]
+        let temp = loggedExercise.orderIndex
+        loggedExercise.orderIndex = other.orderIndex
+        other.orderIndex = temp
+        try? context.save()
+    }
+
+    func moveExerciseDown(_ loggedExercise: LoggedExercise, context: ModelContext) {
+        guard let session = activeSession else { return }
+        let sorted = session.loggedExercises.sorted(by: { $0.orderIndex < $1.orderIndex })
+        guard let idx = sorted.firstIndex(where: { $0.id == loggedExercise.id }), idx < sorted.count - 1 else { return }
+        let other = sorted[idx + 1]
+        let temp = loggedExercise.orderIndex
+        loggedExercise.orderIndex = other.orderIndex
+        other.orderIndex = temp
+        try? context.save()
     }
 
     func removeExercise(_ loggedExercise: LoggedExercise, context: ModelContext) throws {
@@ -81,6 +141,7 @@ final class TrainViewModel: ObservableObject {
         context.delete(loggedExercise)
         try context.save()
         refreshCoverage()
+        updateLiveActivity()
     }
 
     func addSet(
@@ -103,6 +164,7 @@ final class TrainViewModel: ObservableObject {
         loggedExercise.sets.append(set)
         try context.save()
         refreshCoverage()
+        updateLiveActivity()
     }
 
     func updateSet(_ set: LoggedSet, reps: Int, weight: Double, isWarmup: Bool, cardioDurationMinutes: Double? = nil, cardioSpeedDescription: String? = nil, cardioZoneDescription: String? = nil, pinPosition: String? = nil, weightUnit: String = "lbs", context: ModelContext) throws {
@@ -119,6 +181,7 @@ final class TrainViewModel: ObservableObject {
         set.weightUnit = weightUnit
         try context.save()
         refreshCoverage()
+        updateLiveActivity()
     }
 
     func deleteSet(_ set: LoggedSet, from loggedExercise: LoggedExercise, context: ModelContext) throws {
@@ -126,6 +189,7 @@ final class TrainViewModel: ObservableObject {
         context.delete(set)
         try context.save()
         refreshCoverage()
+        updateLiveActivity()
     }
 
     func endWorkout(context: ModelContext) throws {
@@ -134,6 +198,7 @@ final class TrainViewModel: ObservableObject {
         try context.save()
         activeSession = nil
         coverageReport = nil
+        WorkoutActivityManager.shared.endActivity()
     }
 
     func deleteRoutine(_ routine: WorkoutType, context: ModelContext) throws {

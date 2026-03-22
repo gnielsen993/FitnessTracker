@@ -8,8 +8,10 @@ struct RoutinesLibraryView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     @Query(sort: \WorkoutType.name) private var routines: [WorkoutType]
+    @Query(sort: \Exercise.name) private var exercises: [Exercise]
 
     @State private var draftName: String = ""
+    @State private var selectedRoutine: WorkoutType?
 
     private var theme: Theme { themeManager.theme(for: colorScheme) }
 
@@ -36,12 +38,24 @@ struct RoutinesLibraryView: View {
                 }
 
                 ForEach(routines) { routine in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(routine.name)
-                        Text("\(routine.templateExercises.count) exercises")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    Button {
+                        selectedRoutine = routine
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(routine.name)
+                                Text("\(routine.templateItems.count) exercises")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                 }
                 .onDelete { offsets in
                     for index in offsets {
@@ -53,5 +67,8 @@ struct RoutinesLibraryView: View {
             }
         }
         .navigationTitle("Routines")
+        .sheet(item: $selectedRoutine) { routine in
+            TemplateEditorSheet(split: routine, exercises: exercises)
+        }
     }
 }

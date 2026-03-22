@@ -16,7 +16,8 @@ struct FitnessTrackerApp: App {
             ExerciseMuscleMap.self,
             WorkoutSession.self,
             LoggedExercise.self,
-            LoggedSet.self
+            LoggedSet.self,
+            TemplateExercise.self
         ])
         let config = ModelConfiguration(isStoredInMemoryOnly: false)
         do {

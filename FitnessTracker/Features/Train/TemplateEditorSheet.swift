@@ -13,6 +13,7 @@ struct TemplateEditorSheet: View {
     let split: WorkoutType
     let exercises: [Exercise]
 
+    @State private var routineName: String = ""
     @State private var searchText = ""
     @State private var cardioName = ""
     @State private var customExerciseName = ""
@@ -28,6 +29,14 @@ struct TemplateEditorSheet: View {
         exercises.groupedByCategory(filter: searchText)
     }
 
+    private func addTemplateItem(for exercise: Exercise) {
+        guard !split.templateItems.contains(where: { $0.exercise?.id == exercise.id }) else { return }
+        let nextIndex = (split.templateItems.map(\.orderIndex).max() ?? -1) + 1
+        let item = TemplateExercise(orderIndex: nextIndex, defaultSets: 3, routine: split, exercise: exercise)
+        modelContext.insert(item)
+        split.templateItems.append(item)
+        try? modelContext.save()
+    }
 
     private func addCustomExercise() {
         let name = customExerciseName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -36,15 +45,11 @@ struct TemplateEditorSheet: View {
         guard !name.isEmpty else { return }
 
         if let existing = exercises.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
-            if !split.templateExercises.contains(where: { $0.id == existing.id }) {
-                split.templateExercises.append(existing)
-                try? modelContext.save()
-            }
+            addTemplateItem(for: existing)
         } else {
             let created = Exercise(name: name, category: category, equipment: equipment)
             modelContext.insert(created)
-            split.templateExercises.append(created)
-            try? modelContext.save()
+            addTemplateItem(for: created)
         }
 
         customExerciseName = ""
@@ -55,42 +60,72 @@ struct TemplateEditorSheet: View {
         guard !name.isEmpty else { return }
 
         if let existing = exercises.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
-            if !split.templateExercises.contains(where: { $0.id == existing.id }) {
-                split.templateExercises.append(existing)
-                try? modelContext.save()
-            }
+            addTemplateItem(for: existing)
             return
         }
 
         let newExercise = Exercise(name: name, category: "Cardio", equipment: "Cardio")
         modelContext.insert(newExercise)
-        split.templateExercises.append(newExercise)
+        addTemplateItem(for: newExercise)
+    }
+
+    private func removeTemplateItem(_ item: TemplateExercise) {
+        split.templateItems.removeAll { $0.id == item.id }
+        modelContext.delete(item)
+        try? modelContext.save()
+    }
+
+    private func moveItems(from source: IndexSet, to destination: Int) {
+        var items = split.sortedTemplateItems
+        items.move(fromOffsets: source, toOffset: destination)
+        for (index, item) in items.enumerated() {
+            item.orderIndex = index
+        }
         try? modelContext.save()
     }
 
     var body: some View {
         NavigationStack {
             List {
-                if !split.templateExercises.isEmpty {
+                Section("Routine Name") {
+                    TextField("Name", text: $routineName)
+                        .font(theme.typography.body)
+                }
+
+                if !split.templateItems.isEmpty {
                     Section("Current Template") {
-                        ForEach(split.templateExercises.sorted { $0.name < $1.name }) { exercise in
+                        ForEach(split.sortedTemplateItems) { item in
                             HStack {
                                 VStack(alignment: .leading) {
-                                    Text(exercise.name)
-                                    Text(exercise.category)
+                                    Text(item.exercise?.name ?? "Exercise")
+                                    Text(item.exercise?.category ?? "")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
                                 Spacer()
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(theme.colors.accentPrimary)
+                                Stepper("Sets: \(item.defaultSets)", value: Binding(
+                                    get: { item.defaultSets },
+                                    set: { item.defaultSets = $0; try? modelContext.save() }
+                                ), in: 1...20)
+                                .font(.caption)
+                                .fixedSize()
                             }
                             .contentShape(Rectangle())
-                            .onTapGesture {
-                                split.templateExercises.removeAll { $0.id == exercise.id }
-                                try? modelContext.save()
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    removeTemplateItem(item)
+                                } label: {
+                                    Label("Remove", systemImage: "trash")
+                                }
                             }
                         }
+                        .onDelete { offsets in
+                            let items = split.sortedTemplateItems
+                            for index in offsets {
+                                removeTemplateItem(items[index])
+                            }
+                        }
+                        .onMove(perform: moveItems)
                     }
                 }
 
@@ -147,11 +182,10 @@ struct TemplateEditorSheet: View {
                             )
                         ) {
                             ForEach(group.items) { exercise in
-                                let isInTemplate = split.templateExercises.contains { $0.id == exercise.id }
+                                let isInTemplate = split.templateItems.contains { $0.exercise?.id == exercise.id }
                                 if !isInTemplate {
                                     Button {
-                                        split.templateExercises.append(exercise)
-                                        try? modelContext.save()
+                                        addTemplateItem(for: exercise)
                                     } label: {
                                         VStack(alignment: .leading) {
                                             Text(exercise.name)
@@ -171,11 +205,22 @@ struct TemplateEditorSheet: View {
                 }
             }
             .searchable(text: $searchText, prompt: "Search exercises")
-            .navigationTitle("Routine Builder: \(split.name)")
+            .navigationTitle("Routine Builder")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button("Done") {
+                        let trimmed = routineName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmed.isEmpty && trimmed != split.name {
+                            split.name = trimmed
+                            try? modelContext.save()
+                        }
+                        dismiss()
+                    }
                 }
+            }
+            .environment(\.editMode, .constant(.active))
+            .onAppear {
+                routineName = split.name
             }
         }
     }

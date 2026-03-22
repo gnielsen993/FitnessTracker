@@ -9,23 +9,32 @@ final class WorkoutType {
     // A split owns the groups it targets. Default presets are seeded at first launch.
     @Relationship(deleteRule: .nullify) var includedMuscleGroups: [MuscleGroup]
 
-    // Remembered exercises for this split — auto-added when starting a workout.
+    // Legacy: kept temporarily for migration from old templateExercises to templateItems.
     @Relationship(deleteRule: .nullify) var templateExercises: [Exercise]
+
+    // New join model with per-exercise config (order, default sets).
+    @Relationship(deleteRule: .cascade, inverse: \TemplateExercise.routine) var templateItems: [TemplateExercise]
 
     // Inverse of WorkoutSession.workoutType — lets SwiftData auto-nil on delete.
     @Relationship(deleteRule: .nullify, inverse: \WorkoutSession.workoutType) var sessions: [WorkoutSession]
+
+    var sortedTemplateItems: [TemplateExercise] {
+        templateItems.sorted { $0.orderIndex < $1.orderIndex }
+    }
 
     init(
         id: UUID = UUID(),
         name: String,
         includedMuscleGroups: [MuscleGroup] = [],
         templateExercises: [Exercise] = [],
+        templateItems: [TemplateExercise] = [],
         sessions: [WorkoutSession] = []
     ) {
         self.id = id
         self.name = name
         self.includedMuscleGroups = includedMuscleGroups
         self.templateExercises = templateExercises
+        self.templateItems = templateItems
         self.sessions = sessions
     }
 }

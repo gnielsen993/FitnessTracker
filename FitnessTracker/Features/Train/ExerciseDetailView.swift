@@ -1,0 +1,590 @@
+import SwiftUI
+import SwiftData
+import DesignKit
+
+struct ExerciseDetailView: View {
+    @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var themeManager: ThemeManager
+    @Environment(\.colorScheme) private var colorScheme
+
+    @ObservedObject var viewModel: TrainViewModel
+    let logged: LoggedExercise
+    let previousSets: [LoggedSet]?
+    let selectedWeightUnit: WeightUnit
+    let onRestTimer: () -> Void
+    let onError: (String) -> Void
+
+    // Set editor state
+    @State private var setReps = "10"
+    @State private var setWeight = "45"
+    @State private var setIsWarmup = false
+    @State private var cardioDurationMinutes = "20"
+    @State private var cardioSpeedDescription = "6 mph"
+    @State private var cardioZoneDescription = "Zone 2"
+    @State private var setUsesPinTracking = false
+    @State private var setPinPosition = "8th pin"
+    @State private var editingSet: LoggedSet?
+    @State private var showingSetEditor = false
+
+    private var theme: Theme { themeManager.theme(for: colorScheme) }
+
+    private var isCardio: Bool {
+        (logged.exercise?.category ?? "") == "Cardio"
+    }
+
+    private var sortedSets: [LoggedSet] {
+        logged.sets.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    private var workingSetCount: Int {
+        logged.sets.filter { !$0.isWarmup }.count
+    }
+
+    private var isCompleted: Bool {
+        if logged.isMarkedDone { return true }
+        return workingSetCount >= max(1, logged.targetWorkingSets)
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: theme.spacing.l) {
+                headerSection
+                previousPerformanceSection
+                progressSummarySection
+                setsListSection
+                if !isCompleted {
+                    quickAddSection
+                }
+                progressiveOverloadSection
+            }
+            .padding(.horizontal, theme.spacing.s)
+            .padding(.vertical, theme.spacing.l)
+        }
+        .background(theme.colors.background.ignoresSafeArea())
+        .navigationTitle(logged.exercise?.name ?? "Exercise")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(logged.isMarkedDone ? "Undo" : "Done") {
+                    logged.isMarkedDone.toggle()
+                    try? modelContext.save()
+                }
+                .foregroundStyle(logged.isMarkedDone ? theme.colors.success : theme.colors.textSecondary)
+            }
+        }
+        .sheet(isPresented: $showingSetEditor) {
+            if let set = editingSet {
+                setEditorSheet(editing: set)
+            }
+        }
+    }
+
+    // MARK: - Header
+
+    private var headerSection: some View {
+        DKCard(theme: theme) {
+            HStack {
+                Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isCompleted ? theme.colors.success : theme.colors.textTertiary)
+                    .font(.title2)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(logged.exercise?.name ?? "Exercise")
+                        .font(theme.typography.headline)
+                        .foregroundStyle(theme.colors.textPrimary)
+                    if isCardio {
+                        Text("Cardio")
+                            .font(theme.typography.caption)
+                            .foregroundStyle(theme.colors.accentPrimary)
+                    }
+                }
+                Spacer()
+                Text(isCompleted ? "Complete" : "In Progress")
+                    .font(theme.typography.caption)
+                    .foregroundStyle(isCompleted ? theme.colors.success : theme.colors.textSecondary)
+            }
+        }
+    }
+
+    // MARK: - Previous Performance
+
+    @ViewBuilder
+    private var previousPerformanceSection: some View {
+        if let sets = previousSets {
+            let workingSets = sets.filter { !$0.isWarmup }
+            if !workingSets.isEmpty {
+                DKCard(theme: theme) {
+                    VStack(alignment: .leading, spacing: theme.spacing.s) {
+                        Text("Previous Session")
+                            .font(theme.typography.headline)
+                            .foregroundStyle(theme.colors.textPrimary)
+                        ForEach(sets) { set in
+                            HStack(spacing: 4) {
+                                Text(set.isWarmup ? "W" : "\u{2022}")
+                                    .foregroundStyle(set.isWarmup ? theme.colors.textTertiary : theme.colors.accentPrimary)
+                                Text(setSummaryText(set))
+                                    .foregroundStyle(theme.colors.textSecondary)
+                            }
+                            .font(theme.typography.caption)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Progress Summary
+
+    private var progressSummarySection: some View {
+        DKCard(theme: theme) {
+            HStack(spacing: theme.spacing.s) {
+                Text(progressText)
+                    .font(theme.typography.caption)
+                    .foregroundStyle(theme.colors.textSecondary)
+                Spacer()
+                Button {
+                    logged.targetWorkingSets = max(1, logged.targetWorkingSets - 1)
+                    try? modelContext.save()
+                } label: { Image(systemName: "minus.circle") }
+                .buttonStyle(.plain)
+                .foregroundStyle(theme.colors.textSecondary)
+
+                Button {
+                    logged.targetWorkingSets += 1
+                    try? modelContext.save()
+                } label: { Image(systemName: "plus.circle") }
+                .buttonStyle(.plain)
+                .foregroundStyle(theme.colors.accentPrimary)
+            }
+        }
+    }
+
+    private var progressText: String {
+        if logged.sets.contains(where: { ($0.pinPosition?.isEmpty == false) }) {
+            return "Target \(logged.targetWorkingSets) sets \u{2022} Logged \(workingSetCount) \u{2022} Pin tracking"
+        }
+        let unit = logged.sets.last?.weightUnit ?? selectedWeightUnit.rawValue
+        return "Target \(logged.targetWorkingSets) sets \u{2022} Logged \(workingSetCount) \u{2022} Volume \(Int(StatsEngine.exerciseVolume(logged))) \(unit)"
+    }
+
+    // MARK: - Sets List
+
+    private var setsListSection: some View {
+        DKCard(theme: theme) {
+            VStack(alignment: .leading, spacing: theme.spacing.s) {
+                Text("Logged Sets")
+                    .font(theme.typography.headline)
+                    .foregroundStyle(theme.colors.textPrimary)
+
+                if sortedSets.isEmpty {
+                    Text("No sets logged yet.")
+                        .font(theme.typography.body)
+                        .foregroundStyle(theme.colors.textSecondary)
+                }
+
+                ForEach(sortedSets) { set in
+                    Button {
+                        openSetEditor(for: set)
+                    } label: {
+                        HStack(spacing: theme.spacing.xs) {
+                            Text(set.isWarmup ? "W" : "\u{2022}")
+                                .foregroundStyle(set.isWarmup ? theme.colors.textTertiary : theme.colors.accentPrimary)
+                            Text(setSummaryText(set))
+                                .foregroundStyle(theme.colors.textPrimary)
+                            Spacer()
+                            Image(systemName: "pencil")
+                                .font(.caption2)
+                                .foregroundStyle(theme.colors.textTertiary)
+                        }
+                        .font(theme.typography.caption)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    // MARK: - Quick Add
+
+    @ViewBuilder
+    private var quickAddSection: some View {
+        let exerciseId = logged.id
+        let usePin = logged.sets.contains(where: { ($0.pinPosition?.isEmpty == false) })
+
+        DKCard(theme: theme) {
+            VStack(alignment: .leading, spacing: theme.spacing.s) {
+                Text("Quick Add")
+                    .font(theme.typography.headline)
+                    .foregroundStyle(theme.colors.textPrimary)
+
+                if isCardio {
+                    cardioQuickAdd
+                } else if usePin {
+                    pinQuickAdd
+                } else {
+                    weightQuickAdd
+                }
+            }
+        }
+    }
+
+    private var weightQuickAdd: some View {
+        HStack(spacing: theme.spacing.xs) {
+            Button {
+                setIsWarmup.toggle()
+            } label: {
+                Text(setIsWarmup ? "W" : "\u{2022}")
+                    .font(theme.typography.caption)
+                    .foregroundStyle(setIsWarmup ? theme.colors.textTertiary : theme.colors.accentPrimary)
+                    .frame(width: 20)
+            }
+            .buttonStyle(.plain)
+
+            TextField("wt", text: $setWeight)
+                .font(theme.typography.caption)
+#if os(iOS)
+                .keyboardType(.decimalPad)
+#endif
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: 70)
+
+            Text(selectedWeightUnit.displayName)
+                .font(theme.typography.caption)
+                .foregroundStyle(theme.colors.textTertiary)
+
+            Text("\u{00d7}")
+                .font(theme.typography.caption)
+                .foregroundStyle(theme.colors.textTertiary)
+
+            TextField("reps", text: $setReps)
+                .font(theme.typography.caption)
+#if os(iOS)
+                .keyboardType(.numberPad)
+#endif
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: 50)
+
+            Button {
+                saveQuickAdd()
+            } label: {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(theme.colors.accentPrimary)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var cardioQuickAdd: some View {
+        VStack(spacing: theme.spacing.s) {
+            TextField("Duration (min)", text: $cardioDurationMinutes)
+#if os(iOS)
+                .keyboardType(.decimalPad)
+#endif
+                .textFieldStyle(.roundedBorder)
+            TextField("Speed / Pace", text: $cardioSpeedDescription)
+                .textFieldStyle(.roundedBorder)
+            TextField("Zone", text: $cardioZoneDescription)
+                .textFieldStyle(.roundedBorder)
+            Toggle("Warm-up", isOn: $setIsWarmup)
+                .font(theme.typography.caption)
+            Button("Save Set") {
+                saveCardioSet()
+            }
+            .font(theme.typography.caption)
+            .foregroundStyle(theme.colors.accentPrimary)
+        }
+    }
+
+    private var pinQuickAdd: some View {
+        HStack(spacing: theme.spacing.xs) {
+            Button {
+                setIsWarmup.toggle()
+            } label: {
+                Text(setIsWarmup ? "W" : "\u{2022}")
+                    .font(theme.typography.caption)
+                    .foregroundStyle(setIsWarmup ? theme.colors.textTertiary : theme.colors.accentPrimary)
+                    .frame(width: 20)
+            }
+            .buttonStyle(.plain)
+
+            TextField("Pin", text: $setPinPosition)
+                .font(theme.typography.caption)
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: 90)
+
+            Text("\u{00d7}")
+                .font(theme.typography.caption)
+                .foregroundStyle(theme.colors.textTertiary)
+
+            TextField("reps", text: $setReps)
+                .font(theme.typography.caption)
+#if os(iOS)
+                .keyboardType(.numberPad)
+#endif
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: 50)
+
+            Button {
+                savePinSet()
+            } label: {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(theme.colors.accentPrimary)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Progressive Overload
+
+    @ViewBuilder
+    private var progressiveOverloadSection: some View {
+        if let suggestion = progressiveSuggestion() {
+            DKCard(theme: theme) {
+                VStack(alignment: .leading, spacing: theme.spacing.s) {
+                    Text("Progressive Overload")
+                        .font(theme.typography.headline)
+                        .foregroundStyle(theme.colors.textPrimary)
+
+                    Text(suggestion.message)
+                        .font(theme.typography.body)
+                        .foregroundStyle(theme.colors.textSecondary)
+
+                    if let oneRM = suggestion.estimatedOneRM {
+                        Text("Estimated 1RM (Epley): \(Int(oneRM.rounded()))")
+                            .font(theme.typography.caption)
+                            .foregroundStyle(theme.colors.textTertiary)
+                    }
+
+                    ForEach(suggestion.recommendations) { rec in
+                        HStack {
+                            Text("\(rec.reps) reps")
+                                .font(theme.typography.caption)
+                            Spacer()
+                            Text("~\(Int(rec.weight))")
+                                .font(theme.typography.caption)
+                                .foregroundStyle(theme.colors.textSecondary)
+                            Button("Apply") {
+                                setReps = String(rec.reps)
+                                setWeight = String(Int(rec.weight.rounded()))
+                            }
+                            .font(theme.typography.caption)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func setSummaryText(_ set: LoggedSet) -> String {
+        if isCardio {
+            let duration = set.cardioDurationMinutes.map { String(format: "%g min", $0) } ?? "-"
+            let speed = (set.cardioSpeedDescription?.isEmpty == false) ? set.cardioSpeedDescription! : "pace n/a"
+            let zone = (set.cardioZoneDescription?.isEmpty == false) ? set.cardioZoneDescription! : "zone n/a"
+            return "\(duration) \u{2022} \(speed) \u{2022} \(zone)"
+        }
+        if let pin = set.pinPosition, !pin.isEmpty {
+            return "\(pin) \u{00d7} \(set.reps)"
+        }
+        return "\(String(format: "%g", set.weight)) \(set.weightUnit) \u{00d7} \(set.reps)"
+    }
+
+    private func prefillFromLastSet() {
+        if let last = sortedSets.last {
+            setReps = String(last.reps)
+            setWeight = String(format: "%g", last.weight)
+            setIsWarmup = last.isWarmup
+            cardioDurationMinutes = last.cardioDurationMinutes.map { String(format: "%g", $0) } ?? "20"
+            cardioSpeedDescription = last.cardioSpeedDescription ?? "6 mph"
+            cardioZoneDescription = last.cardioZoneDescription ?? "Zone 2"
+            setUsesPinTracking = (last.pinPosition?.isEmpty == false)
+            setPinPosition = last.pinPosition ?? "8th pin"
+        }
+    }
+
+    private func saveQuickAdd() {
+        guard let weight = Double(setWeight), let reps = Int(setReps), reps > 0 else {
+            onError("Enter valid weight and reps.")
+            return
+        }
+        do {
+            try viewModel.addSet(
+                reps: reps, weight: weight, isWarmup: setIsWarmup,
+                weightUnit: selectedWeightUnit.rawValue,
+                to: logged, context: modelContext
+            )
+            if !setIsWarmup { onRestTimer() }
+            prefillFromLastSet()
+        } catch {
+            onError(error.localizedDescription)
+        }
+    }
+
+    private func saveCardioSet() {
+        let reps = 1
+        do {
+            try viewModel.addSet(
+                reps: reps, weight: 0, isWarmup: setIsWarmup,
+                cardioDurationMinutes: Double(cardioDurationMinutes),
+                cardioSpeedDescription: cardioSpeedDescription.trimmingCharacters(in: .whitespacesAndNewlines),
+                cardioZoneDescription: cardioZoneDescription.trimmingCharacters(in: .whitespacesAndNewlines),
+                weightUnit: selectedWeightUnit.rawValue,
+                to: logged, context: modelContext
+            )
+            if !setIsWarmup { onRestTimer() }
+        } catch {
+            onError(error.localizedDescription)
+        }
+    }
+
+    private func savePinSet() {
+        guard let reps = Int(setReps), reps > 0 else {
+            onError("Enter valid reps.")
+            return
+        }
+        do {
+            try viewModel.addSet(
+                reps: reps, weight: 0, isWarmup: setIsWarmup,
+                pinPosition: setPinPosition.trimmingCharacters(in: .whitespacesAndNewlines),
+                weightUnit: selectedWeightUnit.rawValue,
+                to: logged, context: modelContext
+            )
+            if !setIsWarmup { onRestTimer() }
+            prefillFromLastSet()
+        } catch {
+            onError(error.localizedDescription)
+        }
+    }
+
+    private func openSetEditor(for set: LoggedSet) {
+        editingSet = set
+        setReps = String(set.reps)
+        setWeight = String(format: "%g", set.weight)
+        setIsWarmup = set.isWarmup
+        cardioDurationMinutes = set.cardioDurationMinutes.map { String(format: "%g", $0) } ?? "20"
+        cardioSpeedDescription = set.cardioSpeedDescription ?? "6 mph"
+        cardioZoneDescription = set.cardioZoneDescription ?? "Zone 2"
+        setUsesPinTracking = (set.pinPosition?.isEmpty == false)
+        setPinPosition = set.pinPosition ?? "8th pin"
+        showingSetEditor = true
+    }
+
+    private func setEditorSheet(editing set: LoggedSet) -> some View {
+        NavigationStack {
+            Form {
+                Section("Set") {
+                    if isCardio {
+                        TextField("Duration (min)", text: $cardioDurationMinutes)
+#if os(iOS)
+                            .keyboardType(.decimalPad)
+#endif
+                        TextField("Speed / Pace (e.g., 6 mph)", text: $cardioSpeedDescription)
+                        TextField("Zone (e.g., Zone 2)", text: $cardioZoneDescription)
+                    } else {
+                        TextField("Reps", text: $setReps)
+#if os(iOS)
+                            .keyboardType(.numberPad)
+#endif
+                        Toggle("Track by pin position", isOn: $setUsesPinTracking)
+
+                        if setUsesPinTracking {
+                            TextField("Pin (e.g., 8th pin)", text: $setPinPosition)
+                        } else {
+                            TextField("Weight (\(selectedWeightUnit.displayName.uppercased()))", text: $setWeight)
+#if os(iOS)
+                                .keyboardType(.decimalPad)
+#endif
+                            if let typedWeight = Double(setWeight), typedWeight > 0 {
+                                let opposite: WeightUnit = selectedWeightUnit == .lbs ? .kg : .lbs
+                                let converted = WeightUnitSettings.convert(typedWeight, from: selectedWeightUnit, to: opposite)
+                                Text("\u{2248} \(String(format: "%.1f", converted)) \(opposite.displayName.uppercased())")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    Toggle("Warm-up Set", isOn: $setIsWarmup)
+                }
+
+                Section {
+                    Button(role: .destructive) {
+                        do {
+                            try viewModel.deleteSet(set, from: logged, context: modelContext)
+                        } catch {
+                            onError(error.localizedDescription)
+                        }
+                        showingSetEditor = false
+                        editingSet = nil
+                    } label: {
+                        Text("Delete Set")
+                    }
+                }
+            }
+            .navigationTitle("Edit Set")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        showingSetEditor = false
+                        editingSet = nil
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        do {
+                            let reps = Int(setReps) ?? 0
+                            let weight = setUsesPinTracking ? 0 : (Double(setWeight) ?? 0)
+                            let unit = selectedWeightUnit.rawValue
+                            try viewModel.updateSet(
+                                set, reps: reps, weight: weight, isWarmup: setIsWarmup,
+                                cardioDurationMinutes: Double(cardioDurationMinutes),
+                                cardioSpeedDescription: cardioSpeedDescription.trimmingCharacters(in: .whitespacesAndNewlines),
+                                cardioZoneDescription: cardioZoneDescription.trimmingCharacters(in: .whitespacesAndNewlines),
+                                pinPosition: setUsesPinTracking ? setPinPosition.trimmingCharacters(in: .whitespacesAndNewlines) : nil,
+                                weightUnit: unit,
+                                context: modelContext
+                            )
+                            showingSetEditor = false
+                            editingSet = nil
+                        } catch {
+                            onError(error.localizedDescription)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Progressive Overload
+
+    @Query(sort: \WorkoutSession.startedAt, order: .reverse) private var sessions: [WorkoutSession]
+
+    private func progressiveSuggestion() -> ProgressiveSuggestion? {
+        guard let exercise = logged.exercise else { return nil }
+        guard !isCardio else { return nil }
+        guard !logged.sets.contains(where: { ($0.pinPosition?.isEmpty == false) }) else { return nil }
+
+        let activeSessionId = viewModel.activeSession?.id
+        let pastSessions = sessions.filter { session in
+            guard let activeId = activeSessionId else { return true }
+            return session.id != activeId
+        }
+        let pastLoggedForExercise = pastSessions
+            .flatMap { $0.loggedExercises }
+            .filter { $0.exercise?.id == exercise.id }
+        let historicalSets = pastLoggedForExercise
+            .flatMap(\.sets)
+            .filter { !$0.isWarmup }
+            .sorted { $0.createdAt < $1.createdAt }
+
+        let currentSessionSets = logged.sets
+            .filter { !$0.isWarmup }
+            .sorted { $0.createdAt < $1.createdAt }
+
+        let allSets = historicalSets + currentSessionSets
+        let latest = allSets.last
+        return ProgressiveOverloadEngine.suggestion(
+            exercise: exercise,
+            latestWorkingSet: latest,
+            recentWorkingSets: Array(allSets.suffix(12))
+        )
+    }
+}

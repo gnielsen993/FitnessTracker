@@ -5,7 +5,22 @@ final class BootstrapService {
     func bootstrapIfNeeded(context: ModelContext) throws {
         let groups = try ensureMuscleGroups(context: context)
         try ensureDefaultRoutines(context: context, groups: groups)
+        try migrateTemplateExercisesIfNeeded(context: context)
         try context.save()
+    }
+
+    /// Migrate legacy `templateExercises` arrays to `TemplateExercise` join objects.
+    private func migrateTemplateExercisesIfNeeded(context: ModelContext) throws {
+        let routines = try context.fetch(FetchDescriptor<WorkoutType>())
+        for routine in routines {
+            guard !routine.templateExercises.isEmpty, routine.templateItems.isEmpty else { continue }
+            for (index, exercise) in routine.templateExercises.enumerated() {
+                let item = TemplateExercise(orderIndex: index, defaultSets: 3, routine: routine, exercise: exercise)
+                context.insert(item)
+                routine.templateItems.append(item)
+            }
+            routine.templateExercises.removeAll()
+        }
     }
 
     private func ensureMuscleGroups(context: ModelContext) throws -> [String: MuscleGroup] {
