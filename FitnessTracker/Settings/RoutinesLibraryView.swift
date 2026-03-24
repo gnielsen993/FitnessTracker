@@ -7,13 +7,26 @@ struct RoutinesLibraryView: View {
     @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.colorScheme) private var colorScheme
 
-    @Query(sort: \WorkoutType.name) private var routines: [WorkoutType]
+    @Query(sort: [SortDescriptor(\WorkoutType.sortOrder), SortDescriptor(\WorkoutType.name)]) private var routines: [WorkoutType]
     @Query(sort: \Exercise.name) private var exercises: [Exercise]
 
     @State private var draftName: String = ""
     @State private var selectedRoutine: WorkoutType?
 
     private var theme: Theme { themeManager.theme(for: colorScheme) }
+
+    private func normalizeSortOrders(_ routines: [WorkoutType]) {
+        for (index, routine) in routines.enumerated() {
+            routine.sortOrder = index
+        }
+        try? modelContext.save()
+    }
+
+    private func moveRoutines(from source: IndexSet, to destination: Int) {
+        var updated = routines
+        updated.move(fromOffsets: source, toOffset: destination)
+        normalizeSortOrders(updated)
+    }
 
     var body: some View {
         List {
@@ -23,7 +36,7 @@ struct RoutinesLibraryView: View {
                     Button("Add") {
                         let trimmed = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !trimmed.isEmpty else { return }
-                        modelContext.insert(WorkoutType(name: trimmed))
+                        modelContext.insert(WorkoutType(name: trimmed, sortOrder: routines.count))
                         try? modelContext.save()
                         draftName = ""
                     }
@@ -63,12 +76,15 @@ struct RoutinesLibraryView: View {
                         modelContext.delete(routines[index])
                     }
                     try? modelContext.save()
+                    normalizeSortOrders(routines)
                 }
+                .onMove(perform: moveRoutines)
             }
         }
         .navigationTitle("Routines")
         .sheet(item: $selectedRoutine) { routine in
             TemplateEditorSheet(split: routine, exercises: exercises)
         }
+        .toolbar { EditButton() }
     }
 }

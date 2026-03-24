@@ -5,6 +5,7 @@ import SwiftData
 final class WorkoutType {
     @Attribute(.unique) var id: UUID
     var name: String
+    var sortOrder: Int
 
     // A split owns the groups it targets. Default presets are seeded at first launch.
     @Relationship(deleteRule: .nullify) var includedMuscleGroups: [MuscleGroup]
@@ -25,6 +26,7 @@ final class WorkoutType {
     init(
         id: UUID = UUID(),
         name: String,
+        sortOrder: Int = 0,
         includedMuscleGroups: [MuscleGroup] = [],
         templateExercises: [Exercise] = [],
         templateItems: [TemplateExercise] = [],
@@ -32,6 +34,7 @@ final class WorkoutType {
     ) {
         self.id = id
         self.name = name
+        self.sortOrder = sortOrder
         self.includedMuscleGroups = includedMuscleGroups
         self.templateExercises = templateExercises
         self.templateItems = templateItems

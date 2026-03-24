@@ -7,6 +7,7 @@ struct HomeView: View {
     @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \WorkoutSession.startedAt, order: .reverse) private var sessions: [WorkoutSession]
+    @Query(sort: [SortDescriptor(\WorkoutType.sortOrder), SortDescriptor(\WorkoutType.name)]) private var routines: [WorkoutType]
 
     @StateObject private var viewModel = DashboardViewModel()
     @State private var showingInsights = false
@@ -21,11 +22,29 @@ struct HomeView: View {
     private var consistency: [Bool] { viewModel.consistencyLast7Days(from: sessions) }
     private var sessionsLast7Days: Int { consistency.filter { $0 }.count }
 
+
+    private var suggestedRoutine: WorkoutType? {
+        guard !routines.isEmpty else { return nil }
+        let ordered = routines
+        let lastRoutineID = sessions.first?.workoutType?.id
+        guard let lastRoutineID, let idx = ordered.firstIndex(where: { $0.id == lastRoutineID }) else {
+            return ordered.first
+        }
+        return ordered[(idx + 1) % ordered.count]
+    }
+
+    private func startSuggestedWorkout() {
+        guard let routine = suggestedRoutine else { return }
+        UserDefaults.standard.set(routine.id.uuidString, forKey: AppNavigationSignals.suggestedRoutineIDKey)
+        NotificationCenter.default.post(name: AppNavigationSignals.startSuggestedWorkout, object: nil)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: theme.spacing.l) {
                     header
+                    startWorkoutCard
                     topStats
                     volumeCard
                     consistencyCard
@@ -58,6 +77,39 @@ struct HomeView: View {
             Text("Pick up where you left off and keep momentum.")
                 .font(theme.typography.body)
                 .foregroundStyle(theme.colors.textSecondary)
+        }
+    }
+
+    private var startWorkoutCard: some View {
+        DKCard(theme: theme) {
+            VStack(alignment: .leading, spacing: theme.spacing.s) {
+                Text("Start Workout")
+                    .font(theme.typography.headline)
+                    .foregroundStyle(theme.colors.textPrimary)
+
+                if let suggestedRoutine {
+                    Text("Suggested next: \(suggestedRoutine.name)")
+                        .font(theme.typography.body)
+                        .foregroundStyle(theme.colors.textSecondary)
+
+                    HStack(spacing: theme.spacing.s) {
+                        DKButton("Start Suggested", theme: theme) {
+                            startSuggestedWorkout()
+                        }
+
+                        DKButton("Choose Different", style: .secondary, theme: theme) {
+                            NotificationCenter.default.post(name: AppNavigationSignals.startSuggestedWorkout, object: nil)
+                        }
+                    }
+                } else {
+                    Text("Create a routine in Settings to start quickly.")
+                        .font(theme.typography.body)
+                        .foregroundStyle(theme.colors.textSecondary)
+                    DKButton("Go to Train", style: .secondary, theme: theme) {
+                        NotificationCenter.default.post(name: AppNavigationSignals.startSuggestedWorkout, object: nil)
+                    }
+                }
+            }
         }
     }
 

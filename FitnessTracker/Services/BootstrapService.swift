@@ -72,21 +72,25 @@ final class BootstrapService {
 
         let allGroups = ["chest", "triceps", "shoulders", "back", "biceps", "legs", "core"].compactMap { groups[$0] }
 
+        var routineCounter = 0
         func ensureRoutine(_ name: String, _ groupKeys: [String]) {
             guard !deletedByUser.contains(name.lowercased()) else { return }
 
             let targetGroups = groupKeys.compactMap { groups[$0] }
             if let existing = routineIndex[name.lowercased()] {
+                if existing.sortOrder == 0 { existing.sortOrder = routineCounter }
                 let existingIDs = Set(existing.includedMuscleGroups.map { $0.id })
                 for group in targetGroups where !existingIDs.contains(group.id) {
                     existing.includedMuscleGroups.append(group)
                 }
+                routineCounter += 1
                 return
             }
 
-            let created = WorkoutType(name: name, includedMuscleGroups: targetGroups)
+            let created = WorkoutType(name: name, sortOrder: routineCounter, includedMuscleGroups: targetGroups)
             context.insert(created)
             routineIndex[name.lowercased()] = created
+            routineCounter += 1
         }
 
         ensureRoutine("Push", ["chest", "triceps", "shoulders"])

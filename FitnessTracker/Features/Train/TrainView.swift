@@ -10,7 +10,7 @@ struct TrainView: View {
 
     @State private var restDurationSeconds: Double = RestTimerSettings.load()
 
-    @Query(sort: \WorkoutType.name) private var workoutTypes: [WorkoutType]
+    @Query(sort: [SortDescriptor(\WorkoutType.sortOrder), SortDescriptor(\WorkoutType.name)]) private var workoutTypes: [WorkoutType]
     @Query(sort: \Exercise.name) private var exercises: [Exercise]
     @Query(sort: \WorkoutSession.startedAt, order: .reverse) private var sessions: [WorkoutSession]
     @StateObject private var viewModel = TrainViewModel()
@@ -267,6 +267,7 @@ struct TrainView: View {
                 restDurationSeconds = RestTimerSettings.load()
                 selectedWeightUnit = WeightUnitSettings.load()
                 restoreLastSelectedRoutine()
+                consumeSuggestedRoutineStartIfNeeded()
                 if viewModel.activeSession == nil {
                     viewModel.resumeActiveSession(context: modelContext)
                 }
@@ -423,6 +424,23 @@ struct TrainView: View {
                 }
             }
         }
+    }
+
+    private func consumeSuggestedRoutineStartIfNeeded() {
+        guard viewModel.activeSession == nil else { return }
+        let defaults = UserDefaults.standard
+        guard let raw = defaults.string(forKey: AppNavigationSignals.suggestedRoutineIDKey),
+              let id = UUID(uuidString: raw),
+              let match = workoutTypes.first(where: { $0.id == id }) else { return }
+
+        viewModel.selectedSplit = match
+        do {
+            try viewModel.startWorkout(using: match, context: modelContext)
+            startRestTimer()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        defaults.removeObject(forKey: AppNavigationSignals.suggestedRoutineIDKey)
     }
 
     private func persistLastSelectedRoutine() {

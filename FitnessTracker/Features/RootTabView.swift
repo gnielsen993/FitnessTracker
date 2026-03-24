@@ -70,6 +70,10 @@ struct RootTabView: View {
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { tick in
             now = tick
         }
+
+        .onReceive(NotificationCenter.default.publisher(for: AppNavigationSignals.startSuggestedWorkout)) { _ in
+            selectedTab = 1
+        }
         .tint(theme.colors.accentPrimary)
     }
 
