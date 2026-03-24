@@ -65,7 +65,16 @@ struct ExerciseDetailView: View {
             }
             .padding(.horizontal, theme.spacing.s)
             .padding(.vertical, theme.spacing.l)
+            .contentShape(Rectangle())
+            .onTapGesture {
+#if os(iOS)
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+#endif
+            }
         }
+#if os(iOS)
+        .scrollDismissesKeyboard(.interactively)
+#endif
         .background(theme.colors.background.ignoresSafeArea())
         .navigationTitle(logged.exercise?.name ?? "Exercise")
         .toolbar {
@@ -80,6 +89,14 @@ struct ExerciseDetailView: View {
                 }
                 .foregroundStyle(logged.isMarkedDone ? theme.colors.success : theme.colors.textSecondary)
             }
+#if os(iOS)
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+            }
+#endif
         }
         .sheet(isPresented: $showingSetEditor) {
             if let set = editingSet {
