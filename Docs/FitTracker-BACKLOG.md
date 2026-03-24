@@ -1,7 +1,6 @@
 # FitTracker+ Backlog
 
 ## Active
-- #9 target sets default should be user choice
 - #12 one list of workouts, title bigger/clickable to set log
 - #14 manage routines should support changing exercises/default reps
 - #15 whole row clickable, not just text
@@ -15,6 +14,7 @@
 - #30 complete workout feedback
 
 ## Completed
+- #9 target sets default should be user choice
 - #19 wording cleanup
 - #22 autofill weight field
 - #20 number keyboard close

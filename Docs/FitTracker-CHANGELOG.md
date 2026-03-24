@@ -43,6 +43,12 @@ This log is a human-readable paper trail of product-facing changes.
   - Updated Home hero copy from "Performance Lab" / "Train with data, not vibes." to clearer plain-language wording.
   - Performed quick copy cleanup sweep on top-level tab surfaces.
 
+
+- **#9 Routine-defined target sets UX**
+  - Target sets are now configured in routine builder per exercise (default remains 3).
+  - Replaced generic Stepper with cleaner `- [value] +` control where center value is editable.
+  - Removed target-set +/- controls from in-workout exercise screen to reduce clutter.
+
 ### Notes
 - Commit refs:
   - `eb31c58` (timer navigation fix)
@@ -53,3 +59,4 @@ This log is a human-readable paper trail of product-facing changes.
   - `2362bfc` (keyboard dismissal improvements)
   - `3731715` (autofill from latest set history)
   - `b53de7d` (top-level wording and title simplification)
+  - `0063281` (routine-managed target sets + cleaner control)
