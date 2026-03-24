@@ -60,6 +60,13 @@ This log is a human-readable paper trail of product-facing changes.
   - Added visible "Rest complete" bottom banner when countdown reaches zero.
   - Banner auto-dismisses after ~2 seconds and complements haptic feedback.
 
+
+- **#26 Logger hub replaces quick add**
+  - Converted "Quick Add" into a full-width primary set logger hub.
+  - Added logger mode toggles for Weight / Pin / Bodyweight.
+  - Bodyweight and pin sets now save with explicit mode metadata and render correctly in logs.
+  - Kept pull-up editor flow for edits only.
+
 ### Notes
 - Commit refs:
   - `eb31c58` (timer navigation fix)

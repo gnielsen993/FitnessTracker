@@ -24,6 +24,8 @@ struct ExerciseDetailView: View {
     @State private var cardioZoneDescription = "Zone 2"
     @State private var cardioDistance = ""
     @State private var cardioInclinePercent = ""
+    private enum LoggerMode: String, CaseIterable, Identifiable { case weight = "Weight", pin = "Pin", bodyweight = "Bodyweight"; var id: String { rawValue } }
+    @State private var loggerMode: LoggerMode = .weight
     @State private var setUsesPinTracking = false
     @State private var setPinPosition = "8th pin"
     @State private var editingSet: LoggedSet?
@@ -226,28 +228,34 @@ struct ExerciseDetailView: View {
 
     @ViewBuilder
     private var quickAddSection: some View {
-        let exerciseId = logged.id
-        let usePin = logged.sets.contains(where: { ($0.pinPosition?.isEmpty == false) })
-
         DKCard(theme: theme) {
             VStack(alignment: .leading, spacing: theme.spacing.s) {
-                Text(isCardio ? "Add Cardio Entry" : "Quick Add")
+                Text(isCardio ? "Add Cardio Entry" : "Set Logger")
                     .font(theme.typography.headline)
                     .foregroundStyle(theme.colors.textPrimary)
 
                 if isCardio {
                     cardioQuickAdd
-                } else if usePin {
-                    pinQuickAdd
                 } else {
-                    weightQuickAdd
+                    Picker("Logger Mode", selection: $loggerMode) {
+                        ForEach(LoggerMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    switch loggerMode {
+                    case .weight: weightQuickAdd
+                    case .pin: pinQuickAdd
+                    case .bodyweight: bodyweightQuickAdd
+                    }
                 }
             }
         }
     }
 
     private var weightQuickAdd: some View {
-        HStack(spacing: theme.spacing.xs) {
+        VStack(spacing: theme.spacing.s) {
             Button {
                 setIsWarmup.toggle()
             } label: {
@@ -264,7 +272,7 @@ struct ExerciseDetailView: View {
                 .keyboardType(.decimalPad)
 #endif
                 .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 70)
+                
 
             Text(selectedWeightUnit.displayName)
                 .font(theme.typography.caption)
@@ -280,15 +288,12 @@ struct ExerciseDetailView: View {
                 .keyboardType(.numberPad)
 #endif
                 .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 50)
+                
 
-            Button {
+            Button("Log Set") {
                 saveQuickAdd()
-            } label: {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(theme.colors.accentPrimary)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderedProminent)
         }
     }
 
@@ -324,7 +329,7 @@ struct ExerciseDetailView: View {
     }
 
     private var pinQuickAdd: some View {
-        HStack(spacing: theme.spacing.xs) {
+        VStack(spacing: theme.spacing.s) {
             Button {
                 setIsWarmup.toggle()
             } label: {
@@ -338,7 +343,6 @@ struct ExerciseDetailView: View {
             TextField("Pin", text: $setPinPosition)
                 .font(theme.typography.caption)
                 .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 90)
 
             Text("\u{00d7}")
                 .font(theme.typography.caption)
@@ -350,15 +354,12 @@ struct ExerciseDetailView: View {
                 .keyboardType(.numberPad)
 #endif
                 .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 50)
+                
 
-            Button {
+            Button("Log Set") {
                 savePinSet()
-            } label: {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(theme.colors.accentPrimary)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderedProminent)
         }
     }
 
@@ -416,6 +417,9 @@ struct ExerciseDetailView: View {
             if let incline = set.cardioInclinePercent { parts.append(String(format: "%g%% incline", incline)) }
             return parts.joined(separator: " • ")
         }
+        if set.isBodyweight {
+            return "Bodyweight × \(set.reps)"
+        }
         if let pin = set.pinPosition, !pin.isEmpty {
             return "\(pin) × \(set.reps)"
         }
@@ -434,6 +438,7 @@ struct ExerciseDetailView: View {
             cardioInclinePercent = last.cardioInclinePercent.map { String(format: "%g", $0) } ?? ""
             setUsesPinTracking = (last.pinPosition?.isEmpty == false)
             setPinPosition = last.pinPosition ?? "8th pin"
+            loggerMode = last.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
         }
     }
 
@@ -450,6 +455,7 @@ struct ExerciseDetailView: View {
             cardioInclinePercent = last.cardioInclinePercent.map { String(format: "%g", $0) } ?? ""
             setUsesPinTracking = (last.pinPosition?.isEmpty == false)
             setPinPosition = last.pinPosition ?? "8th pin"
+            loggerMode = last.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
             return
         }
 
@@ -465,6 +471,7 @@ struct ExerciseDetailView: View {
             cardioInclinePercent = lastHistorical.cardioInclinePercent.map { String(format: "%g", $0) } ?? ""
             setUsesPinTracking = (lastHistorical.pinPosition?.isEmpty == false)
             setPinPosition = lastHistorical.pinPosition ?? "8th pin"
+            loggerMode = lastHistorical.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
         }
     }
 
@@ -505,6 +512,25 @@ struct ExerciseDetailView: View {
         }
     }
 
+    private func saveBodyweightSet() {
+        guard let reps = Int(setReps), reps > 0 else {
+            onError("Enter valid reps.")
+            return
+        }
+        do {
+            try viewModel.addSet(
+                reps: reps, weight: 0, isWarmup: setIsWarmup,
+                isBodyweight: true,
+                weightUnit: selectedWeightUnit.rawValue,
+                to: logged, context: modelContext
+            )
+            if !setIsWarmup { onRestTimer() }
+            prefillFromLastSet()
+        } catch {
+            onError(error.localizedDescription)
+        }
+    }
+
     private func savePinSet() {
         guard let reps = Int(setReps), reps > 0 else {
             onError("Enter valid reps.")
@@ -536,6 +562,7 @@ struct ExerciseDetailView: View {
         cardioInclinePercent = set.cardioInclinePercent.map { String(format: "%g", $0) } ?? ""
         setUsesPinTracking = (set.pinPosition?.isEmpty == false)
         setPinPosition = set.pinPosition ?? "8th pin"
+        loggerMode = set.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
         showingSetEditor = true
     }
 
@@ -563,12 +590,18 @@ struct ExerciseDetailView: View {
 #if os(iOS)
                             .keyboardType(.numberPad)
 #endif
-                        Toggle("Track by pin position", isOn: $setUsesPinTracking)
+                        Picker("Mode", selection: $loggerMode) {
+                            Text("Weight").tag(LoggerMode.weight)
+                            Text("Pin").tag(LoggerMode.pin)
+                            Text("Bodyweight").tag(LoggerMode.bodyweight)
+                        }
+                        .pickerStyle(.segmented)
 
-                        if setUsesPinTracking {
+                        if loggerMode == .pin {
                             TextField("Pin (e.g., 8th pin)", text: $setPinPosition)
-                        } else {
+                        } else if loggerMode == .weight {
                             TextField("Weight (\(selectedWeightUnit.displayName.uppercased()))", text: $setWeight)
+
 #if os(iOS)
                                 .keyboardType(.decimalPad)
 #endif
@@ -610,7 +643,7 @@ struct ExerciseDetailView: View {
                     Button("Save") {
                         do {
                             let reps = Int(setReps) ?? 0
-                            let weight = setUsesPinTracking ? 0 : (Double(setWeight) ?? 0)
+                            let weight = (loggerMode == .weight) ? (Double(setWeight) ?? 0) : 0
                             let unit = selectedWeightUnit.rawValue
                             try viewModel.updateSet(
                                 set, reps: reps, weight: weight, isWarmup: setIsWarmup,

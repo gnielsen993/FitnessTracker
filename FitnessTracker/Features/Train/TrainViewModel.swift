@@ -154,6 +154,7 @@ final class TrainViewModel: ObservableObject {
         cardioDistance: Double? = nil,
         cardioInclinePercent: Double? = nil,
         pinPosition: String? = nil,
+        isBodyweight: Bool = false,
         weightUnit: String = "lbs",
         to loggedExercise: LoggedExercise,
         context: ModelContext
@@ -161,7 +162,7 @@ final class TrainViewModel: ObservableObject {
         guard reps > 0 else { throw TrainError.invalidReps }
         guard weight >= 0 else { throw TrainError.invalidWeight }
 
-        let set = LoggedSet(reps: reps, weight: weight, isWarmup: isWarmup, cardioDurationMinutes: cardioDurationMinutes, cardioSpeedDescription: cardioSpeedDescription, cardioZoneDescription: cardioZoneDescription, cardioDistance: cardioDistance, cardioInclinePercent: cardioInclinePercent, pinPosition: pinPosition, weightUnit: weightUnit, loggedExercise: loggedExercise)
+        let set = LoggedSet(reps: reps, weight: weight, isWarmup: isWarmup, cardioDurationMinutes: cardioDurationMinutes, cardioSpeedDescription: cardioSpeedDescription, cardioZoneDescription: cardioZoneDescription, cardioDistance: cardioDistance, cardioInclinePercent: cardioInclinePercent, pinPosition: pinPosition, isBodyweight: isBodyweight, weightUnit: weightUnit, loggedExercise: loggedExercise)
         context.insert(set)
         loggedExercise.sets.append(set)
         try context.save()
@@ -169,7 +170,7 @@ final class TrainViewModel: ObservableObject {
         updateLiveActivity()
     }
 
-    func updateSet(_ set: LoggedSet, reps: Int, weight: Double, isWarmup: Bool, cardioDurationMinutes: Double? = nil, cardioSpeedDescription: String? = nil, cardioZoneDescription: String? = nil, cardioDistance: Double? = nil, cardioInclinePercent: Double? = nil, pinPosition: String? = nil, weightUnit: String = "lbs", context: ModelContext) throws {
+    func updateSet(_ set: LoggedSet, reps: Int, weight: Double, isWarmup: Bool, cardioDurationMinutes: Double? = nil, cardioSpeedDescription: String? = nil, cardioZoneDescription: String? = nil, cardioDistance: Double? = nil, cardioInclinePercent: Double? = nil, pinPosition: String? = nil, isBodyweight: Bool = false, weightUnit: String = "lbs", context: ModelContext) throws {
         guard reps > 0 else { throw TrainError.invalidReps }
         guard weight >= 0 else { throw TrainError.invalidWeight }
 
@@ -182,6 +183,7 @@ final class TrainViewModel: ObservableObject {
         set.cardioDistance = cardioDistance
         set.cardioInclinePercent = cardioInclinePercent
         set.pinPosition = pinPosition
+        set.isBodyweight = isBodyweight
         set.weightUnit = weightUnit
         try context.save()
         refreshCoverage()
