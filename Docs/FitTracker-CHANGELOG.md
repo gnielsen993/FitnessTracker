@@ -55,6 +55,11 @@ This log is a human-readable paper trail of product-facing changes.
   - Added "Choose Different" path to jump into Train for manual choice.
   - Added routine ordering controls in Manage Routines so suggestion follows user-defined sequence.
 
+
+- **#18 Rest-complete notification**
+  - Added visible "Rest complete" bottom banner when countdown reaches zero.
+  - Banner auto-dismisses after ~2 seconds and complements haptic feedback.
+
 ### Notes
 - Commit refs:
   - `eb31c58` (timer navigation fix)
@@ -67,3 +72,4 @@ This log is a human-readable paper trail of product-facing changes.
   - `b53de7d` (top-level wording and title simplification)
   - `0063281` (routine-managed target sets + cleaner control)
   - `597e45d` (home quick-start suggestions + routine ordering)
+  - `eedbfae` (rest-complete banner notification)
