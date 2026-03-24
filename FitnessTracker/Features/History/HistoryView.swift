@@ -59,8 +59,7 @@ struct HistoryView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .background(theme.colors.background.ignoresSafeArea())
-            .navigationTitle("History")
-            .sheet(isPresented: Binding(get: { selectedDate != nil }, set: { if !$0 { selectedDate = nil } })) {
+                        .sheet(isPresented: Binding(get: { selectedDate != nil }, set: { if !$0 { selectedDate = nil } })) {
                 if let date = selectedDate {
                     DayHistorySheet(
                         date: date,

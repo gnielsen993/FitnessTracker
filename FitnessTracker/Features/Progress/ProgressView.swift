@@ -204,8 +204,7 @@ struct ProgressView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .background(theme.colors.background.ignoresSafeArea())
-            .navigationTitle("Progress")
-        }
+                    }
     }
 
     private var oneRMHeaderCard: some View {

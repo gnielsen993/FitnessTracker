@@ -194,8 +194,7 @@ struct TrainView: View {
                 }
             }
             .background(theme.colors.background.ignoresSafeArea())
-            .navigationTitle("Train")
-            .toolbar {
+                        .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 12) {
                         Button {

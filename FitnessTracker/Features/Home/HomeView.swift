@@ -40,8 +40,7 @@ struct HomeView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .background(theme.colors.background.ignoresSafeArea())
-            .navigationTitle("Home")
-            .sheet(isPresented: $showingInsights) {
+                        .sheet(isPresented: $showingInsights) {
                 InsightsView(tips: viewModel.tips(from: sessions))
                     .environmentObject(themeManager)
             }
@@ -53,10 +52,10 @@ struct HomeView: View {
             Text(Date.now.formatted(date: .abbreviated, time: .omitted))
                 .font(theme.typography.caption)
                 .foregroundStyle(theme.colors.textSecondary)
-            Text("Performance Lab")
+            Text("Today")
                 .font(theme.typography.titleLarge)
                 .foregroundStyle(theme.colors.textPrimary)
-            Text("Train with data, not vibes.")
+            Text("Pick up where you left off and keep momentum.")
                 .font(theme.typography.body)
                 .foregroundStyle(theme.colors.textSecondary)
         }

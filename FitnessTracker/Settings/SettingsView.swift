@@ -188,8 +188,7 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .background(theme.colors.background.ignoresSafeArea())
-            .navigationTitle("Settings")
-            .onAppear {
+                        .onAppear {
                 restDurationSeconds = RestTimerSettings.load()
                 selectedWeightUnit = WeightUnitSettings.load()
             }
