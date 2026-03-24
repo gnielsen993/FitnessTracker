@@ -31,6 +31,12 @@ This log is a human-readable paper trail of product-facing changes.
   - Tapping outside numeric input now dismisses keyboard in exercise detail flow.
   - Added explicit keyboard "Done" action for quick dismissal.
 
+
+- **#22 Autofill exercise inputs from last set**
+  - Re-entering an exercise now prefills from the latest in-progress set.
+  - If no in-progress set exists, fields prefill from most recent historical set.
+  - Prevents default fallback to 45 x 10 unless no prior data exists.
+
 ### Notes
 - Commit refs:
   - `eb31c58` (timer navigation fix)
@@ -39,3 +45,4 @@ This log is a human-readable paper trail of product-facing changes.
   - `6ab87ad` (cardio entry-first + distance/incline)
   - `5a13782` (global active workout return banner)
   - `2362bfc` (keyboard dismissal improvements)
+  - `3731715` (autofill from latest set history)
