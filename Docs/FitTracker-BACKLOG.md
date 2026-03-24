@@ -18,6 +18,7 @@
 - #30 complete workout feedback
 
 ## Completed
+- #21 easier access back to workout
 - #24 done should leave screen
 - #27 timer gets stopped by other inputs
 - #29 cardio shouldn’t be sets

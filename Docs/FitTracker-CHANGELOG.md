@@ -20,9 +20,16 @@ This log is a human-readable paper trail of product-facing changes.
   - Cardio completion rule set to: at least one non-warmup entry.
   - Updated cardio labels and editor flows to use entry language.
 
+
+- **#21 Active workout return banner**
+  - Added global bottom "active workout" bar on non-Train tabs.
+  - Bar shows current workout, last logged exercise, and live rest timer context.
+  - One tap jumps user back into Train workflow quickly.
+
 ### Notes
 - Commit refs:
   - `eb31c58` (timer navigation fix)
   - `4f24565` (timer runloop hardening)
   - `41b261f` (done auto-return)
   - `6ab87ad` (cardio entry-first + distance/incline)
+  - `5a13782` (global active workout return banner)
