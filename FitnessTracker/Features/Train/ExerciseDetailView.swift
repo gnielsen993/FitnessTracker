@@ -103,6 +103,9 @@ struct ExerciseDetailView: View {
                 setEditorSheet(editing: set)
             }
         }
+        .onAppear {
+            prefillFromHistoryIfNeeded()
+        }
     }
 
     // MARK: - Header
@@ -446,6 +449,37 @@ struct ExerciseDetailView: View {
             cardioInclinePercent = last.cardioInclinePercent.map { String(format: "%g", $0) } ?? ""
             setUsesPinTracking = (last.pinPosition?.isEmpty == false)
             setPinPosition = last.pinPosition ?? "8th pin"
+        }
+    }
+
+    private func prefillFromHistoryIfNeeded() {
+        // Prefer in-progress workout data first.
+        if let last = sortedSets.last {
+            setReps = String(last.reps)
+            setWeight = String(format: "%g", last.weight)
+            setIsWarmup = false
+            cardioDurationMinutes = last.cardioDurationMinutes.map { String(format: "%g", $0) } ?? "20"
+            cardioSpeedDescription = last.cardioSpeedDescription ?? "6 mph"
+            cardioZoneDescription = last.cardioZoneDescription ?? "Zone 2"
+            cardioDistance = last.cardioDistance.map { String(format: "%g", $0) } ?? ""
+            cardioInclinePercent = last.cardioInclinePercent.map { String(format: "%g", $0) } ?? ""
+            setUsesPinTracking = (last.pinPosition?.isEmpty == false)
+            setPinPosition = last.pinPosition ?? "8th pin"
+            return
+        }
+
+        // Otherwise hydrate from most recent historical set for this exercise.
+        if let lastHistorical = previousSets?.last {
+            setReps = String(lastHistorical.reps)
+            setWeight = String(format: "%g", lastHistorical.weight)
+            setIsWarmup = false
+            cardioDurationMinutes = lastHistorical.cardioDurationMinutes.map { String(format: "%g", $0) } ?? "20"
+            cardioSpeedDescription = lastHistorical.cardioSpeedDescription ?? "6 mph"
+            cardioZoneDescription = lastHistorical.cardioZoneDescription ?? "Zone 2"
+            cardioDistance = lastHistorical.cardioDistance.map { String(format: "%g", $0) } ?? ""
+            cardioInclinePercent = lastHistorical.cardioInclinePercent.map { String(format: "%g", $0) } ?? ""
+            setUsesPinTracking = (lastHistorical.pinPosition?.isEmpty == false)
+            setPinPosition = lastHistorical.pinPosition ?? "8th pin"
         }
     }
 
