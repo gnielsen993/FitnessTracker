@@ -37,6 +37,12 @@ This log is a human-readable paper trail of product-facing changes.
   - If no in-progress set exists, fields prefill from most recent historical set.
   - Prevents default fallback to 45 x 10 unless no prior data exists.
 
+
+- **#19 Wording cleanup pass**
+  - Removed redundant top screen titles that duplicated tab names.
+  - Updated Home hero copy from "Performance Lab" / "Train with data, not vibes." to clearer plain-language wording.
+  - Performed quick copy cleanup sweep on top-level tab surfaces.
+
 ### Notes
 - Commit refs:
   - `eb31c58` (timer navigation fix)
@@ -46,3 +52,4 @@ This log is a human-readable paper trail of product-facing changes.
   - `5a13782` (global active workout return banner)
   - `2362bfc` (keyboard dismissal improvements)
   - `3731715` (autofill from latest set history)
+  - `b53de7d` (top-level wording and title simplification)
