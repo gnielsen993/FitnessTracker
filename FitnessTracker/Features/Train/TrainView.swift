@@ -284,9 +284,6 @@ struct TrainView: View {
             .onChange(of: workoutTypes.count) { _, _ in
                 restoreLastSelectedRoutine()
             }
-            .onDisappear {
-                stopRestTimer()
-            }
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active, let endDate = restTimerEndDate {
                     let remaining = Int(endDate.timeIntervalSinceNow)
