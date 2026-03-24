@@ -9,6 +9,7 @@
 - #28 machine type chooser
 
 ## Completed
+- #17 full width boxes
 - #30 complete workout feedback
 - #25 exercises should be top of workout
 - #15 whole row clickable, not just text

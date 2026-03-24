@@ -73,6 +73,11 @@ This log is a human-readable paper trail of product-facing changes.
   - Moved exercises section above notes/coverage to prioritize logging flow.
   - Added workout-complete feedback: quick "Workout logged" banner plus full routine-complete sheet when all planned work is done.
 
+
+- **#17 Full-width logger sweep**
+  - Converted set logger modes (weight/pin/bodyweight) to full-width input layouts.
+  - Standardized logger controls as a cleaner vertically stacked entry hub.
+
 ### Notes
 - `4c0f6e2` (row tap, exercises-first layout, completion feedback)
 - Commit refs:

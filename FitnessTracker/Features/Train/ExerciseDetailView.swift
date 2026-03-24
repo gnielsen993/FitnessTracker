@@ -255,45 +255,31 @@ struct ExerciseDetailView: View {
     }
 
     private var weightQuickAdd: some View {
-        VStack(spacing: theme.spacing.s) {
-            Button {
-                setIsWarmup.toggle()
-            } label: {
-                Text(setIsWarmup ? "W" : "\u{2022}")
-                    .font(theme.typography.caption)
-                    .foregroundStyle(setIsWarmup ? theme.colors.textTertiary : theme.colors.accentPrimary)
-                    .frame(width: 20)
-            }
-            .buttonStyle(.plain)
-
-            TextField("wt", text: $setWeight)
+        VStack(alignment: .leading, spacing: theme.spacing.s) {
+            Toggle("Warm-up", isOn: $setIsWarmup)
                 .font(theme.typography.caption)
+
+            TextField("Weight (\(selectedWeightUnit.displayName.uppercased()))", text: $setWeight)
+                .font(theme.typography.body)
 #if os(iOS)
                 .keyboardType(.decimalPad)
 #endif
                 .textFieldStyle(.roundedBorder)
-                
+                .frame(maxWidth: .infinity)
 
-            Text(selectedWeightUnit.displayName)
-                .font(theme.typography.caption)
-                .foregroundStyle(theme.colors.textTertiary)
-
-            Text("\u{00d7}")
-                .font(theme.typography.caption)
-                .foregroundStyle(theme.colors.textTertiary)
-
-            TextField("reps", text: $setReps)
-                .font(theme.typography.caption)
+            TextField("Reps", text: $setReps)
+                .font(theme.typography.body)
 #if os(iOS)
                 .keyboardType(.numberPad)
 #endif
                 .textFieldStyle(.roundedBorder)
-                
+                .frame(maxWidth: .infinity)
 
             Button("Log Set") {
                 saveQuickAdd()
             }
             .buttonStyle(.borderedProminent)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -329,37 +315,49 @@ struct ExerciseDetailView: View {
     }
 
     private var pinQuickAdd: some View {
-        VStack(spacing: theme.spacing.s) {
-            Button {
-                setIsWarmup.toggle()
-            } label: {
-                Text(setIsWarmup ? "W" : "\u{2022}")
-                    .font(theme.typography.caption)
-                    .foregroundStyle(setIsWarmup ? theme.colors.textTertiary : theme.colors.accentPrimary)
-                    .frame(width: 20)
-            }
-            .buttonStyle(.plain)
-
-            TextField("Pin", text: $setPinPosition)
+        VStack(alignment: .leading, spacing: theme.spacing.s) {
+            Toggle("Warm-up", isOn: $setIsWarmup)
                 .font(theme.typography.caption)
+
+            TextField("Pin (e.g., 8th pin)", text: $setPinPosition)
+                .font(theme.typography.body)
                 .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: .infinity)
 
-            Text("\u{00d7}")
-                .font(theme.typography.caption)
-                .foregroundStyle(theme.colors.textTertiary)
-
-            TextField("reps", text: $setReps)
-                .font(theme.typography.caption)
+            TextField("Reps", text: $setReps)
+                .font(theme.typography.body)
 #if os(iOS)
                 .keyboardType(.numberPad)
 #endif
                 .textFieldStyle(.roundedBorder)
-                
+                .frame(maxWidth: .infinity)
 
             Button("Log Set") {
                 savePinSet()
             }
             .buttonStyle(.borderedProminent)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var bodyweightQuickAdd: some View {
+        VStack(alignment: .leading, spacing: theme.spacing.s) {
+            Toggle("Warm-up", isOn: $setIsWarmup)
+                .font(theme.typography.caption)
+
+            TextField("Reps", text: $setReps)
+                .font(theme.typography.body)
+#if os(iOS)
+                .keyboardType(.numberPad)
+#endif
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: .infinity)
+
+            Button("Log Set") {
+                saveBodyweightSet()
+            }
+            .buttonStyle(.borderedProminent)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
