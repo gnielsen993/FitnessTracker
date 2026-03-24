@@ -170,21 +170,6 @@ struct ExerciseDetailView: View {
                     .font(theme.typography.caption)
                     .foregroundStyle(theme.colors.textSecondary)
                 Spacer()
-                if !isCardio {
-                    Button {
-                        logged.targetWorkingSets = max(1, logged.targetWorkingSets - 1)
-                        try? modelContext.save()
-                    } label: { Image(systemName: "minus.circle") }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(theme.colors.textSecondary)
-
-                    Button {
-                        logged.targetWorkingSets += 1
-                        try? modelContext.save()
-                    } label: { Image(systemName: "plus.circle") }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(theme.colors.accentPrimary)
-                }
             }
         }
     }
