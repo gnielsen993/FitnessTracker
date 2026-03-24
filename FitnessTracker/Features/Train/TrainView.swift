@@ -687,6 +687,7 @@ struct TrainView: View {
 
         let endDate = Date.now.addingTimeInterval(restDurationSeconds)
         restTimerEndDate = endDate
+        RestTimerRuntime.setEndDate(endDate)
         viewModel.updateLiveActivity(restTimerEndDate: endDate, restTimerFinished: false)
 
         let timer = Timer(timeInterval: 1, repeats: true) { timer in
@@ -697,6 +698,7 @@ struct TrainView: View {
                 } else {
                     restRemainingSeconds = 0
                     restTimerEndDate = nil
+                    RestTimerRuntime.setEndDate(nil)
 #if os(iOS)
                     let generator = UINotificationFeedbackGenerator()
                     generator.notificationOccurred(.success)
@@ -717,6 +719,7 @@ struct TrainView: View {
         restTimer?.invalidate()
         restTimer = nil
         restTimerEndDate = nil
+        RestTimerRuntime.setEndDate(nil)
         viewModel.updateLiveActivity(restTimerEndDate: nil)
     }
 }
