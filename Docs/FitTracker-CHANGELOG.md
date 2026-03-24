@@ -78,6 +78,11 @@ This log is a human-readable paper trail of product-facing changes.
   - Converted set logger modes (weight/pin/bodyweight) to full-width input layouts.
   - Standardized logger controls as a cleaner vertically stacked entry hub.
 
+
+- **#16 Dynamic Island timer priority with music**
+  - Removed compact trailing branding icon to avoid timer being displaced when other Live Activities (music) are present.
+  - Minimal island now prioritizes timer/status indicator instead of app icon.
+
 ### Notes
 - `4c0f6e2` (row tap, exercises-first layout, completion feedback)
 - Commit refs:

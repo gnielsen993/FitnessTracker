@@ -79,11 +79,22 @@ struct WorkoutLiveActivity: Widget {
                         .foregroundStyle(.secondary)
                 }
             } compactTrailing: {
-                Image(systemName: "figure.strengthtraining.traditional")
-                    .foregroundStyle(.green)
+                // Intentionally empty so system-compacted pair prefers
+                // timer on leading side and leaves trailing side for other apps (e.g. music).
+                EmptyView()
             } minimal: {
-                Image(systemName: "figure.strengthtraining.traditional")
-                    .foregroundStyle(.green)
+                // Minimal view should prioritize timer visibility over branding icon.
+                if context.state.restTimerFinished {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                } else if let endDate = context.state.restTimerEndDate, endDate > .now {
+                    Image(systemName: "timer")
+                        .foregroundStyle(.orange)
+                } else {
+                    Text("\(context.state.completedExercises)")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
