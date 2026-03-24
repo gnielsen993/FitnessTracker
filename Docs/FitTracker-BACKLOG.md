@@ -9,7 +9,6 @@
 - #17 full-width boxes
 - #18 timer done notification polish
 - #19 wording cleanup
-- #20 number keyboard close
 - #22 autofill weight field
 - #23 quick access new workout on Home screen
 - #25 exercises should be top of workout
@@ -18,6 +17,7 @@
 - #30 complete workout feedback
 
 ## Completed
+- #20 number keyboard close
 - #21 easier access back to workout
 - #24 done should leave screen
 - #27 timer gets stopped by other inputs

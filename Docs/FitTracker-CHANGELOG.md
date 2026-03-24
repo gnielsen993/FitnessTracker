@@ -26,6 +26,11 @@ This log is a human-readable paper trail of product-facing changes.
   - Bar shows current workout, last logged exercise, and live rest timer context.
   - One tap jumps user back into Train workflow quickly.
 
+
+- **#20 Keyboard close UX**
+  - Tapping outside numeric input now dismisses keyboard in exercise detail flow.
+  - Added explicit keyboard "Done" action for quick dismissal.
+
 ### Notes
 - Commit refs:
   - `eb31c58` (timer navigation fix)
@@ -33,3 +38,4 @@ This log is a human-readable paper trail of product-facing changes.
   - `41b261f` (done auto-return)
   - `6ab87ad` (cardio entry-first + distance/incline)
   - `5a13782` (global active workout return banner)
+  - `2362bfc` (keyboard dismissal improvements)
