@@ -3,15 +3,15 @@
 ## Active
 - #12 one list of workouts, title bigger/clickable to set log
 - #14 manage routines should support changing exercises/default reps
-- #15 whole row clickable, not just text
 - #16 timer left-side behavior clarification needed
 - #17 full-width boxes
 - #18 timer done notification polish
-- #25 exercises should be top of workout
 - #28 machine type chooser
-- #30 complete workout feedback
 
 ## Completed
+- #30 complete workout feedback
+- #25 exercises should be top of workout
+- #15 whole row clickable, not just text
 - #26 quick add should include pin/bodyweight options
 - #23 quick access new workout on Home screen
 - #9 target sets default should be user choice

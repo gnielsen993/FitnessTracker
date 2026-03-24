@@ -67,7 +67,14 @@ This log is a human-readable paper trail of product-facing changes.
   - Bodyweight and pin sets now save with explicit mode metadata and render correctly in logs.
   - Kept pull-up editor flow for edits only.
 
+
+- **#15/#25/#30 Workout flow quick-win bundle**
+  - Made exercise rows fully tappable across the full row hit area.
+  - Moved exercises section above notes/coverage to prioritize logging flow.
+  - Added workout-complete feedback: quick "Workout logged" banner plus full routine-complete sheet when all planned work is done.
+
 ### Notes
+- `4c0f6e2` (row tap, exercises-first layout, completion feedback)
 - Commit refs:
   - `eb31c58` (timer navigation fix)
   - `4f24565` (timer runloop hardening)
