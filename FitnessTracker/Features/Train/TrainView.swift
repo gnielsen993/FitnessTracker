@@ -25,6 +25,7 @@ struct TrainView: View {
     @State private var selectedWeightUnit: WeightUnit = WeightUnitSettings.load()
     @State private var errorMessage: String?
     @State private var showingConverter = false
+    @State private var showRestDoneBanner = false
     @State private var pendingTemplateEdit = false
     @State private var routineToDelete: WorkoutType?
 
@@ -189,6 +190,12 @@ struct TrainView: View {
                 // Floating rest timer pill
                 if viewModel.activeSession != nil && restRemainingSeconds > 0 {
                     floatingRestTimerPill
+                        .padding(.bottom, theme.spacing.m)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+
+                if showRestDoneBanner {
+                    restDoneBanner
                         .padding(.bottom, theme.spacing.m)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
@@ -591,6 +598,27 @@ struct TrainView: View {
 
     // MARK: - Floating rest timer pill
 
+    private var restDoneBanner: some View {
+        VStack {
+            Spacer()
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(theme.colors.success)
+                Text("Rest complete")
+                    .font(theme.typography.body)
+                    .foregroundStyle(theme.colors.textPrimary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                Capsule()
+                    .fill(theme.colors.surfaceElevated)
+                    .overlay(Capsule().stroke(theme.colors.border, lineWidth: 1))
+                    .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
+            )
+        }
+    }
+
     private var floatingRestTimerPill: some View {
         HStack(spacing: theme.spacing.m) {
             Image(systemName: "timer")
@@ -721,6 +749,10 @@ struct TrainView: View {
                     generator.notificationOccurred(.success)
 #endif
                     viewModel.updateLiveActivity(restTimerFinished: true)
+                    withAnimation { showRestDoneBanner = true }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        withAnimation { showRestDoneBanner = false }
+                    }
                     timer.invalidate()
                     restTimer = nil
                 }
