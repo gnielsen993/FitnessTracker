@@ -49,6 +49,12 @@ This log is a human-readable paper trail of product-facing changes.
   - Replaced generic Stepper with cleaner `- [value] +` control where center value is editable.
   - Removed target-set +/- controls from in-workout exercise screen to reduce clutter.
 
+
+- **#23 Home quick-start + routine ordering**
+  - Added Home "Start Workout" card with suggested next routine and one-tap start.
+  - Added "Choose Different" path to jump into Train for manual choice.
+  - Added routine ordering controls in Manage Routines so suggestion follows user-defined sequence.
+
 ### Notes
 - Commit refs:
   - `eb31c58` (timer navigation fix)
@@ -60,3 +66,4 @@ This log is a human-readable paper trail of product-facing changes.
   - `3731715` (autofill from latest set history)
   - `b53de7d` (top-level wording and title simplification)
   - `0063281` (routine-managed target sets + cleaner control)
+  - `597e45d` (home quick-start suggestions + routine ordering)

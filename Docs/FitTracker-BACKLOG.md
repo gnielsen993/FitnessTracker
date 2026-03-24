@@ -7,13 +7,13 @@
 - #16 timer left-side behavior clarification needed
 - #17 full-width boxes
 - #18 timer done notification polish
-- #23 quick access new workout on Home screen
 - #25 exercises should be top of workout
 - #26 quick add should include pin/bodyweight options
 - #28 machine type chooser
 - #30 complete workout feedback
 
 ## Completed
+- #23 quick access new workout on Home screen
 - #9 target sets default should be user choice
 - #19 wording cleanup
 - #22 autofill weight field
