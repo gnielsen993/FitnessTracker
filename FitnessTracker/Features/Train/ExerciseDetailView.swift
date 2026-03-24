@@ -6,6 +6,7 @@ struct ExerciseDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dismiss) private var dismiss
 
     @ObservedObject var viewModel: TrainViewModel
     let logged: LoggedExercise
@@ -65,8 +66,12 @@ struct ExerciseDetailView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(logged.isMarkedDone ? "Undo" : "Done") {
+                    let shouldDismiss = !logged.isMarkedDone
                     logged.isMarkedDone.toggle()
                     try? modelContext.save()
+                    if shouldDismiss {
+                        dismiss()
+                    }
                 }
                 .foregroundStyle(logged.isMarkedDone ? theme.colors.success : theme.colors.textSecondary)
             }
