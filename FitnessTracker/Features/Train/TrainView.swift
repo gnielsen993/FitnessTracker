@@ -26,6 +26,8 @@ struct TrainView: View {
     @State private var errorMessage: String?
     @State private var showingConverter = false
     @State private var showRestDoneBanner = false
+    @State private var showWorkoutLoggedBanner = false
+    @State private var showRoutineCompleteSheet = false
     @State private var pendingTemplateEdit = false
     @State private var routineToDelete: WorkoutType?
 
@@ -65,37 +67,9 @@ struct TrainView: View {
                     VStack(alignment: .leading, spacing: theme.spacing.l) {
                         splitPicker
 
-                        if let report = viewModel.coverageReport {
-                            Button {
-                                showingCoverageDetails = true
-                            } label: {
-                                CoverageCardView(report: report, theme: theme)
-                            }
-                            .buttonStyle(.plain)
-                        }
-
                         workoutControls
 
-                        // Workout notes
-                        if let session = viewModel.activeSession {
-                            DKCard(theme: theme) {
-                                DisclosureGroup {
-                                    TextEditor(text: Binding(
-                                        get: { session.notes },
-                                        set: { session.notes = $0; try? modelContext.save() }
-                                    ))
-                                    .frame(minHeight: 60)
-                                    .font(theme.typography.body)
-                                    .scrollContentBackground(.hidden)
-                                } label: {
-                                    Text("Notes")
-                                        .font(theme.typography.headline)
-                                        .foregroundStyle(theme.colors.textPrimary)
-                                }
-                            }
-                        }
-
-                        // Consolidated exercise master list
+                        // Consolidated exercise master list (top priority)
                         if let session = viewModel.activeSession {
                             DKCard(theme: theme) {
                                 VStack(alignment: .leading, spacing: theme.spacing.m) {
@@ -171,6 +145,34 @@ struct TrainView: View {
                                 }
                             }
                         }
+
+                        // Workout notes
+                        if let session = viewModel.activeSession {
+                            DKCard(theme: theme) {
+                                DisclosureGroup {
+                                    TextEditor(text: Binding(
+                                        get: { session.notes },
+                                        set: { session.notes = $0; try? modelContext.save() }
+                                    ))
+                                    .frame(minHeight: 60)
+                                    .font(theme.typography.body)
+                                    .scrollContentBackground(.hidden)
+                                } label: {
+                                    Text("Notes")
+                                        .font(theme.typography.headline)
+                                        .foregroundStyle(theme.colors.textPrimary)
+                                }
+                            }
+                        }
+
+                        if let report = viewModel.coverageReport {
+                            Button {
+                                showingCoverageDetails = true
+                            } label: {
+                                CoverageCardView(report: report, theme: theme)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                     .padding(.vertical, theme.spacing.l)
                     .padding(.horizontal, theme.spacing.s)
@@ -196,6 +198,12 @@ struct TrainView: View {
 
                 if showRestDoneBanner {
                     restDoneBanner
+                        .padding(.bottom, theme.spacing.m)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+
+                if showWorkoutLoggedBanner {
+                    workoutLoggedBanner
                         .padding(.bottom, theme.spacing.m)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
@@ -240,6 +248,10 @@ struct TrainView: View {
             }
             .sheet(isPresented: $showingCoverageDetails) {
                 CoverageDetailsView(report: viewModel.coverageReport, theme: theme)
+            }
+
+            .sheet(isPresented: $showRoutineCompleteSheet) {
+                routineCompleteSheet
             }
             .alert("Workout Error", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button("OK", role: .cancel) {}
@@ -343,6 +355,8 @@ struct TrainView: View {
                 .font(.caption2)
                 .foregroundStyle(theme.colors.textTertiary)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
         .padding(.vertical, theme.spacing.xs)
     }
 
@@ -555,8 +569,17 @@ struct TrainView: View {
                                 try viewModel.startWorkout(using: split, context: modelContext)
                                 startRestTimer()
                             } else {
+                                let completedBeforeEnd = completedExerciseCount
+                                let totalBeforeEnd = totalExerciseCount
                                 try viewModel.endWorkout(context: modelContext)
                                 stopRestTimer()
+                                withAnimation { showWorkoutLoggedBanner = true }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                    withAnimation { showWorkoutLoggedBanner = false }
+                                }
+                                if totalBeforeEnd > 0 && completedBeforeEnd >= totalBeforeEnd {
+                                    showRoutineCompleteSheet = true
+                                }
                             }
                         } catch {
                             errorMessage = error.localizedDescription
@@ -597,6 +620,51 @@ struct TrainView: View {
     }
 
     // MARK: - Floating rest timer pill
+
+    private var workoutLoggedBanner: some View {
+        VStack {
+            Spacer()
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.seal.fill")
+                    .foregroundStyle(theme.colors.success)
+                Text("Workout logged")
+                    .font(theme.typography.body)
+                    .foregroundStyle(theme.colors.textPrimary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                Capsule()
+                    .fill(theme.colors.surfaceElevated)
+                    .overlay(Capsule().stroke(theme.colors.border, lineWidth: 1))
+                    .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
+            )
+        }
+    }
+
+    private var routineCompleteSheet: some View {
+        NavigationStack {
+            VStack(spacing: theme.spacing.l) {
+                Image(systemName: "party.popper.fill")
+                    .font(.system(size: 42))
+                    .foregroundStyle(theme.colors.accentPrimary)
+                Text("Routine complete")
+                    .font(theme.typography.title)
+                    .foregroundStyle(theme.colors.textPrimary)
+                Text("Nice work — your workout was saved successfully.")
+                    .font(theme.typography.body)
+                    .foregroundStyle(theme.colors.textSecondary)
+                    .multilineTextAlignment(.center)
+                Button("Done") {
+                    showRoutineCompleteSheet = false
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding(theme.spacing.l)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(theme.colors.background.ignoresSafeArea())
+        }
+    }
 
     private var restDoneBanner: some View {
         VStack {
