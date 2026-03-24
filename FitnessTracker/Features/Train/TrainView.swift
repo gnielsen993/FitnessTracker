@@ -685,7 +685,7 @@ struct TrainView: View {
         restTimerEndDate = endDate
         viewModel.updateLiveActivity(restTimerEndDate: endDate, restTimerFinished: false)
 
-        restTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+        let timer = Timer(timeInterval: 1, repeats: true) { timer in
             DispatchQueue.main.async {
                 let remaining = Int(endDate.timeIntervalSinceNow)
                 if remaining > 0 {
@@ -699,9 +699,14 @@ struct TrainView: View {
 #endif
                     viewModel.updateLiveActivity(restTimerFinished: true)
                     timer.invalidate()
+                    restTimer = nil
                 }
             }
         }
+        // Use common runloop modes so countdown does not pause during scrolling,
+        // text input focus changes, or other UI tracking interactions.
+        RunLoop.main.add(timer, forMode: .common)
+        restTimer = timer
     }
 
     private func stopRestTimer() {
