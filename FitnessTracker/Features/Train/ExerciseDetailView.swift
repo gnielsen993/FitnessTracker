@@ -22,6 +22,8 @@ struct ExerciseDetailView: View {
     @State private var cardioDurationMinutes = "20"
     @State private var cardioSpeedDescription = "6 mph"
     @State private var cardioZoneDescription = "Zone 2"
+    @State private var cardioDistance = ""
+    @State private var cardioInclinePercent = ""
     @State private var setUsesPinTracking = false
     @State private var setPinPosition = "8th pin"
     @State private var editingSet: LoggedSet?
@@ -43,6 +45,9 @@ struct ExerciseDetailView: View {
 
     private var isCompleted: Bool {
         if logged.isMarkedDone { return true }
+        if isCardio {
+            return logged.sets.contains(where: { !$0.isWarmup })
+        }
         return workingSetCount >= max(1, logged.targetWorkingSets)
     }
 
@@ -145,29 +150,34 @@ struct ExerciseDetailView: View {
                     .font(theme.typography.caption)
                     .foregroundStyle(theme.colors.textSecondary)
                 Spacer()
-                Button {
-                    logged.targetWorkingSets = max(1, logged.targetWorkingSets - 1)
-                    try? modelContext.save()
-                } label: { Image(systemName: "minus.circle") }
-                .buttonStyle(.plain)
-                .foregroundStyle(theme.colors.textSecondary)
+                if !isCardio {
+                    Button {
+                        logged.targetWorkingSets = max(1, logged.targetWorkingSets - 1)
+                        try? modelContext.save()
+                    } label: { Image(systemName: "minus.circle") }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(theme.colors.textSecondary)
 
-                Button {
-                    logged.targetWorkingSets += 1
-                    try? modelContext.save()
-                } label: { Image(systemName: "plus.circle") }
-                .buttonStyle(.plain)
-                .foregroundStyle(theme.colors.accentPrimary)
+                    Button {
+                        logged.targetWorkingSets += 1
+                        try? modelContext.save()
+                    } label: { Image(systemName: "plus.circle") }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(theme.colors.accentPrimary)
+                }
             }
         }
     }
 
     private var progressText: String {
+        if isCardio {
+            return "Cardio entries logged: \(workingSetCount) • Complete after first entry"
+        }
         if logged.sets.contains(where: { ($0.pinPosition?.isEmpty == false) }) {
-            return "Target \(logged.targetWorkingSets) sets \u{2022} Logged \(workingSetCount) \u{2022} Pin tracking"
+            return "Target \(logged.targetWorkingSets) sets • Logged \(workingSetCount) • Pin tracking"
         }
         let unit = logged.sets.last?.weightUnit ?? selectedWeightUnit.rawValue
-        return "Target \(logged.targetWorkingSets) sets \u{2022} Logged \(workingSetCount) \u{2022} Volume \(Int(StatsEngine.exerciseVolume(logged))) \(unit)"
+        return "Target \(logged.targetWorkingSets) sets • Logged \(workingSetCount) • Volume \(Int(StatsEngine.exerciseVolume(logged))) \(unit)"
     }
 
     // MARK: - Sets List
@@ -175,12 +185,12 @@ struct ExerciseDetailView: View {
     private var setsListSection: some View {
         DKCard(theme: theme) {
             VStack(alignment: .leading, spacing: theme.spacing.s) {
-                Text("Logged Sets")
+                Text(isCardio ? "Cardio Log" : "Logged Sets")
                     .font(theme.typography.headline)
                     .foregroundStyle(theme.colors.textPrimary)
 
                 if sortedSets.isEmpty {
-                    Text("No sets logged yet.")
+                    Text(isCardio ? "No cardio entries logged yet." : "No sets logged yet.")
                         .font(theme.typography.body)
                         .foregroundStyle(theme.colors.textSecondary)
                 }
@@ -216,7 +226,7 @@ struct ExerciseDetailView: View {
 
         DKCard(theme: theme) {
             VStack(alignment: .leading, spacing: theme.spacing.s) {
-                Text("Quick Add")
+                Text(isCardio ? "Add Cardio Entry" : "Quick Add")
                     .font(theme.typography.headline)
                     .foregroundStyle(theme.colors.textPrimary)
 
@@ -288,9 +298,19 @@ struct ExerciseDetailView: View {
                 .textFieldStyle(.roundedBorder)
             TextField("Zone", text: $cardioZoneDescription)
                 .textFieldStyle(.roundedBorder)
+            TextField("Distance (optional)", text: $cardioDistance)
+#if os(iOS)
+                .keyboardType(.decimalPad)
+#endif
+                .textFieldStyle(.roundedBorder)
+            TextField("Incline % (optional)", text: $cardioInclinePercent)
+#if os(iOS)
+                .keyboardType(.decimalPad)
+#endif
+                .textFieldStyle(.roundedBorder)
             Toggle("Warm-up", isOn: $setIsWarmup)
                 .font(theme.typography.caption)
-            Button("Save Set") {
+            Button("Save Entry") {
                 saveCardioSet()
             }
             .font(theme.typography.caption)
@@ -382,15 +402,19 @@ struct ExerciseDetailView: View {
 
     private func setSummaryText(_ set: LoggedSet) -> String {
         if isCardio {
+            var parts: [String] = []
             let duration = set.cardioDurationMinutes.map { String(format: "%g min", $0) } ?? "-"
-            let speed = (set.cardioSpeedDescription?.isEmpty == false) ? set.cardioSpeedDescription! : "pace n/a"
-            let zone = (set.cardioZoneDescription?.isEmpty == false) ? set.cardioZoneDescription! : "zone n/a"
-            return "\(duration) \u{2022} \(speed) \u{2022} \(zone)"
+            parts.append(duration)
+            if let speed = set.cardioSpeedDescription, !speed.isEmpty { parts.append(speed) }
+            if let zone = set.cardioZoneDescription, !zone.isEmpty { parts.append(zone) }
+            if let distance = set.cardioDistance { parts.append(String(format: "%g mi", distance)) }
+            if let incline = set.cardioInclinePercent { parts.append(String(format: "%g%% incline", incline)) }
+            return parts.joined(separator: " • ")
         }
         if let pin = set.pinPosition, !pin.isEmpty {
-            return "\(pin) \u{00d7} \(set.reps)"
+            return "\(pin) × \(set.reps)"
         }
-        return "\(String(format: "%g", set.weight)) \(set.weightUnit) \u{00d7} \(set.reps)"
+        return "\(String(format: "%g", set.weight)) \(set.weightUnit) × \(set.reps)"
     }
 
     private func prefillFromLastSet() {
@@ -401,6 +425,8 @@ struct ExerciseDetailView: View {
             cardioDurationMinutes = last.cardioDurationMinutes.map { String(format: "%g", $0) } ?? "20"
             cardioSpeedDescription = last.cardioSpeedDescription ?? "6 mph"
             cardioZoneDescription = last.cardioZoneDescription ?? "Zone 2"
+            cardioDistance = last.cardioDistance.map { String(format: "%g", $0) } ?? ""
+            cardioInclinePercent = last.cardioInclinePercent.map { String(format: "%g", $0) } ?? ""
             setUsesPinTracking = (last.pinPosition?.isEmpty == false)
             setPinPosition = last.pinPosition ?? "8th pin"
         }
@@ -432,6 +458,8 @@ struct ExerciseDetailView: View {
                 cardioDurationMinutes: Double(cardioDurationMinutes),
                 cardioSpeedDescription: cardioSpeedDescription.trimmingCharacters(in: .whitespacesAndNewlines),
                 cardioZoneDescription: cardioZoneDescription.trimmingCharacters(in: .whitespacesAndNewlines),
+                cardioDistance: Double(cardioDistance),
+                cardioInclinePercent: Double(cardioInclinePercent),
                 weightUnit: selectedWeightUnit.rawValue,
                 to: logged, context: modelContext
             )
@@ -468,6 +496,8 @@ struct ExerciseDetailView: View {
         cardioDurationMinutes = set.cardioDurationMinutes.map { String(format: "%g", $0) } ?? "20"
         cardioSpeedDescription = set.cardioSpeedDescription ?? "6 mph"
         cardioZoneDescription = set.cardioZoneDescription ?? "Zone 2"
+        cardioDistance = set.cardioDistance.map { String(format: "%g", $0) } ?? ""
+        cardioInclinePercent = set.cardioInclinePercent.map { String(format: "%g", $0) } ?? ""
         setUsesPinTracking = (set.pinPosition?.isEmpty == false)
         setPinPosition = set.pinPosition ?? "8th pin"
         showingSetEditor = true
@@ -484,6 +514,14 @@ struct ExerciseDetailView: View {
 #endif
                         TextField("Speed / Pace (e.g., 6 mph)", text: $cardioSpeedDescription)
                         TextField("Zone (e.g., Zone 2)", text: $cardioZoneDescription)
+                        TextField("Distance (optional)", text: $cardioDistance)
+#if os(iOS)
+                            .keyboardType(.decimalPad)
+#endif
+                        TextField("Incline % (optional)", text: $cardioInclinePercent)
+#if os(iOS)
+                            .keyboardType(.decimalPad)
+#endif
                     } else {
                         TextField("Reps", text: $setReps)
 #if os(iOS)
@@ -520,11 +558,11 @@ struct ExerciseDetailView: View {
                         showingSetEditor = false
                         editingSet = nil
                     } label: {
-                        Text("Delete Set")
+                        Text(isCardio ? "Delete Entry" : "Delete Set")
                     }
                 }
             }
-            .navigationTitle("Edit Set")
+            .navigationTitle(isCardio ? "Edit Cardio Entry" : "Edit Set")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -543,6 +581,8 @@ struct ExerciseDetailView: View {
                                 cardioDurationMinutes: Double(cardioDurationMinutes),
                                 cardioSpeedDescription: cardioSpeedDescription.trimmingCharacters(in: .whitespacesAndNewlines),
                                 cardioZoneDescription: cardioZoneDescription.trimmingCharacters(in: .whitespacesAndNewlines),
+                                cardioDistance: Double(cardioDistance),
+                                cardioInclinePercent: Double(cardioInclinePercent),
                                 pinPosition: setUsesPinTracking ? setPinPosition.trimmingCharacters(in: .whitespacesAndNewlines) : nil,
                                 weightUnit: unit,
                                 context: modelContext

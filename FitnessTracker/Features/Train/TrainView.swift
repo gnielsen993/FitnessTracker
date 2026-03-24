@@ -365,6 +365,10 @@ struct TrainView: View {
 
     private func isExerciseCompleted(_ logged: LoggedExercise) -> Bool {
         if logged.isMarkedDone { return true }
+        let isCardio = (logged.exercise?.category ?? "") == "Cardio"
+        if isCardio {
+            return logged.sets.contains(where: { !$0.isWarmup })
+        }
         return workingSetCount(for: logged) >= max(1, logged.targetWorkingSets)
     }
 
