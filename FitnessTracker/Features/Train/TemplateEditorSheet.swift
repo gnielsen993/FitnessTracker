@@ -109,39 +109,13 @@ struct TemplateEditorSheet: View {
                                         .foregroundStyle(.secondary)
                                 }
                                 Spacer()
-                                HStack(spacing: 6) {
-                                    Button {
-                                        setDefaultSets(item.defaultSets - 1, for: item)
-                                    } label: {
-                                        Image(systemName: "minus.circle")
-                                    }
-                                    .buttonStyle(.plain)
-                                    .foregroundStyle(.secondary)
-
-                                    TextField("Sets", text: Binding(
-                                        get: { String(item.defaultSets) },
-                                        set: { raw in
-                                            if let value = Int(raw.trimmingCharacters(in: .whitespacesAndNewlines)) {
-                                                setDefaultSets(value, for: item)
-                                            }
-                                        }
-                                    ))
-#if os(iOS)
-                                    .keyboardType(.numberPad)
-#endif
-                                    .multilineTextAlignment(.center)
-                                    .frame(width: 44)
-                                    .textFieldStyle(.roundedBorder)
-
-                                    Button {
-                                        setDefaultSets(item.defaultSets + 1, for: item)
-                                    } label: {
-                                        Image(systemName: "plus.circle")
-                                    }
-                                    .buttonStyle(.plain)
-                                    .foregroundStyle(.accentColor)
-                                }
+                                Stepper("Sets: \(item.defaultSets)", value: Binding(
+                                    get: { item.defaultSets },
+                                    set: { setDefaultSets($0, for: item) }
+                                ), in: 1...20)
                                 .font(.caption)
+                                .fixedSize()
+
                             }
                             .contentShape(Rectangle())
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
