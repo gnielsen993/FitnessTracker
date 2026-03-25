@@ -83,6 +83,13 @@ This log is a human-readable paper trail of product-facing changes.
   - Removed compact trailing branding icon to avoid timer being displaced when other Live Activities (music) are present.
   - Minimal island now prioritizes timer/status indicator instead of app icon.
 
+
+- **Timer utility + reliability pass**
+  - Added optional timed-set metric (seconds) for Weight/Pin/Bodyweight logger modes (e.g., planks without fake reps).
+  - Logger/editor now support Reps vs Time per entry and preserve correct formatting in history.
+  - Added app-start cleanup to end stale Live Activities when no workout is active.
+  - Enhanced Dynamic Island completion indicator prominence in compact/minimal states.
+
 ### Notes
 - `4c0f6e2` (row tap, exercises-first layout, completion feedback)
 - Commit refs:
