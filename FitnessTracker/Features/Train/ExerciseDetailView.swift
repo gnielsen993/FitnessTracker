@@ -28,6 +28,9 @@ struct ExerciseDetailView: View {
     @State private var loggerMode: LoggerMode = .weight
     @State private var setUsesPinTracking = false
     @State private var setPinPosition = "8th pin"
+    private enum SetMetric: String, CaseIterable, Identifiable { case reps = "Reps", time = "Time"; var id: String { rawValue } }
+    @State private var setMetric: SetMetric = .reps
+    @State private var setDurationSeconds = "45"
     @State private var editingSet: LoggedSet?
     @State private var showingSetEditor = false
 
@@ -267,13 +270,30 @@ struct ExerciseDetailView: View {
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: .infinity)
 
-            TextField("Reps", text: $setReps)
-                .font(theme.typography.body)
+            Picker("Metric", selection: $setMetric) {
+                ForEach(SetMetric.allCases) { metric in
+                    Text(metric.rawValue).tag(metric)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if setMetric == .reps {
+                TextField("Reps", text: $setReps)
+                    .font(theme.typography.body)
 #if os(iOS)
-                .keyboardType(.numberPad)
+                    .keyboardType(.numberPad)
 #endif
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: .infinity)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: .infinity)
+            } else {
+                TextField("Time (sec)", text: $setDurationSeconds)
+                    .font(theme.typography.body)
+#if os(iOS)
+                    .keyboardType(.numberPad)
+#endif
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: .infinity)
+            }
 
             Button("Log Set") {
                 saveQuickAdd()
@@ -324,13 +344,30 @@ struct ExerciseDetailView: View {
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: .infinity)
 
-            TextField("Reps", text: $setReps)
-                .font(theme.typography.body)
+            Picker("Metric", selection: $setMetric) {
+                ForEach(SetMetric.allCases) { metric in
+                    Text(metric.rawValue).tag(metric)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if setMetric == .reps {
+                TextField("Reps", text: $setReps)
+                    .font(theme.typography.body)
 #if os(iOS)
-                .keyboardType(.numberPad)
+                    .keyboardType(.numberPad)
 #endif
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: .infinity)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: .infinity)
+            } else {
+                TextField("Time (sec)", text: $setDurationSeconds)
+                    .font(theme.typography.body)
+#if os(iOS)
+                    .keyboardType(.numberPad)
+#endif
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: .infinity)
+            }
 
             Button("Log Set") {
                 savePinSet()
@@ -345,13 +382,30 @@ struct ExerciseDetailView: View {
             Toggle("Warm-up", isOn: $setIsWarmup)
                 .font(theme.typography.caption)
 
-            TextField("Reps", text: $setReps)
-                .font(theme.typography.body)
+            Picker("Metric", selection: $setMetric) {
+                ForEach(SetMetric.allCases) { metric in
+                    Text(metric.rawValue).tag(metric)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if setMetric == .reps {
+                TextField("Reps", text: $setReps)
+                    .font(theme.typography.body)
 #if os(iOS)
-                .keyboardType(.numberPad)
+                    .keyboardType(.numberPad)
 #endif
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: .infinity)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: .infinity)
+            } else {
+                TextField("Time (sec)", text: $setDurationSeconds)
+                    .font(theme.typography.body)
+#if os(iOS)
+                    .keyboardType(.numberPad)
+#endif
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: .infinity)
+            }
 
             Button("Log Set") {
                 saveBodyweightSet()
@@ -415,6 +469,11 @@ struct ExerciseDetailView: View {
             if let incline = set.cardioInclinePercent { parts.append(String(format: "%g%% incline", incline)) }
             return parts.joined(separator: " • ")
         }
+        if let duration = set.durationSeconds {
+            if set.isBodyweight { return "Bodyweight • \(duration)s" }
+            if let pin = set.pinPosition, !pin.isEmpty { return "\(pin) • \(duration)s" }
+            return "\(String(format: "%g", set.weight)) \(set.weightUnit) • \(duration)s"
+        }
         if set.isBodyweight {
             return "Bodyweight × \(set.reps)"
         }
@@ -437,6 +496,8 @@ struct ExerciseDetailView: View {
             setUsesPinTracking = (last.pinPosition?.isEmpty == false)
             setPinPosition = last.pinPosition ?? "8th pin"
             loggerMode = last.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
+            setMetric = (last.durationSeconds != nil) ? .time : .reps
+            setDurationSeconds = last.durationSeconds.map(String.init) ?? "45"
         }
     }
 
@@ -454,6 +515,8 @@ struct ExerciseDetailView: View {
             setUsesPinTracking = (last.pinPosition?.isEmpty == false)
             setPinPosition = last.pinPosition ?? "8th pin"
             loggerMode = last.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
+            setMetric = (last.durationSeconds != nil) ? .time : .reps
+            setDurationSeconds = last.durationSeconds.map(String.init) ?? "45"
             return
         }
 
@@ -470,17 +533,26 @@ struct ExerciseDetailView: View {
             setUsesPinTracking = (lastHistorical.pinPosition?.isEmpty == false)
             setPinPosition = lastHistorical.pinPosition ?? "8th pin"
             loggerMode = lastHistorical.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
+            setMetric = (lastHistorical.durationSeconds != nil) ? .time : .reps
+            setDurationSeconds = lastHistorical.durationSeconds.map(String.init) ?? "45"
         }
     }
 
     private func saveQuickAdd() {
-        guard let weight = Double(setWeight), let reps = Int(setReps), reps > 0 else {
-            onError("Enter valid weight and reps.")
+        guard let weight = Double(setWeight) else {
+            onError("Enter valid weight.")
+            return
+        }
+        let reps = (setMetric == .reps) ? (Int(setReps) ?? 0) : 1
+        let duration = (setMetric == .time) ? Int(setDurationSeconds) : nil
+        guard (setMetric == .reps ? reps > 0 : (duration ?? 0) > 0) else {
+            onError(setMetric == .reps ? "Enter valid reps." : "Enter valid time in seconds.")
             return
         }
         do {
             try viewModel.addSet(
                 reps: reps, weight: weight, isWarmup: setIsWarmup,
+                durationSeconds: duration,
                 weightUnit: selectedWeightUnit.rawValue,
                 to: logged, context: modelContext
             )
@@ -511,14 +583,17 @@ struct ExerciseDetailView: View {
     }
 
     private func saveBodyweightSet() {
-        guard let reps = Int(setReps), reps > 0 else {
-            onError("Enter valid reps.")
+        let reps = (setMetric == .reps) ? (Int(setReps) ?? 0) : 1
+        let duration = (setMetric == .time) ? Int(setDurationSeconds) : nil
+        guard (setMetric == .reps ? reps > 0 : (duration ?? 0) > 0) else {
+            onError(setMetric == .reps ? "Enter valid reps." : "Enter valid time in seconds.")
             return
         }
         do {
             try viewModel.addSet(
                 reps: reps, weight: 0, isWarmup: setIsWarmup,
                 isBodyweight: true,
+                durationSeconds: duration,
                 weightUnit: selectedWeightUnit.rawValue,
                 to: logged, context: modelContext
             )
@@ -530,14 +605,17 @@ struct ExerciseDetailView: View {
     }
 
     private func savePinSet() {
-        guard let reps = Int(setReps), reps > 0 else {
-            onError("Enter valid reps.")
+        let reps = (setMetric == .reps) ? (Int(setReps) ?? 0) : 1
+        let duration = (setMetric == .time) ? Int(setDurationSeconds) : nil
+        guard (setMetric == .reps ? reps > 0 : (duration ?? 0) > 0) else {
+            onError(setMetric == .reps ? "Enter valid reps." : "Enter valid time in seconds.")
             return
         }
         do {
             try viewModel.addSet(
                 reps: reps, weight: 0, isWarmup: setIsWarmup,
                 pinPosition: setPinPosition.trimmingCharacters(in: .whitespacesAndNewlines),
+                durationSeconds: duration,
                 weightUnit: selectedWeightUnit.rawValue,
                 to: logged, context: modelContext
             )
@@ -561,6 +639,8 @@ struct ExerciseDetailView: View {
         setUsesPinTracking = (set.pinPosition?.isEmpty == false)
         setPinPosition = set.pinPosition ?? "8th pin"
         loggerMode = set.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
+        setMetric = (set.durationSeconds != nil) ? .time : .reps
+        setDurationSeconds = set.durationSeconds.map(String.init) ?? "45"
         showingSetEditor = true
     }
 
@@ -584,10 +664,24 @@ struct ExerciseDetailView: View {
                             .keyboardType(.decimalPad)
 #endif
                     } else {
-                        TextField("Reps", text: $setReps)
+                        Picker("Metric", selection: $setMetric) {
+                            Text("Reps").tag(SetMetric.reps)
+                            Text("Time").tag(SetMetric.time)
+                        }
+                        .pickerStyle(.segmented)
+
+                        if setMetric == .reps {
+                            TextField("Reps", text: $setReps)
 #if os(iOS)
-                            .keyboardType(.numberPad)
+                                .keyboardType(.numberPad)
 #endif
+                        } else {
+                            TextField("Time (sec)", text: $setDurationSeconds)
+#if os(iOS)
+                                .keyboardType(.numberPad)
+#endif
+                        }
+
                         Picker("Mode", selection: $loggerMode) {
                             Text("Weight").tag(LoggerMode.weight)
                             Text("Pin").tag(LoggerMode.pin)
@@ -640,7 +734,7 @@ struct ExerciseDetailView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         do {
-                            let reps = Int(setReps) ?? 0
+                            let reps = (setMetric == .reps) ? (Int(setReps) ?? 0) : 1
                             let weight = (loggerMode == .weight) ? (Double(setWeight) ?? 0) : 0
                             let unit = selectedWeightUnit.rawValue
                             try viewModel.updateSet(
@@ -650,7 +744,9 @@ struct ExerciseDetailView: View {
                                 cardioZoneDescription: cardioZoneDescription.trimmingCharacters(in: .whitespacesAndNewlines),
                                 cardioDistance: Double(cardioDistance),
                                 cardioInclinePercent: Double(cardioInclinePercent),
-                                pinPosition: setUsesPinTracking ? setPinPosition.trimmingCharacters(in: .whitespacesAndNewlines) : nil,
+                                pinPosition: loggerMode == .pin ? setPinPosition.trimmingCharacters(in: .whitespacesAndNewlines) : nil,
+                                isBodyweight: loggerMode == .bodyweight,
+                                durationSeconds: setMetric == .time ? Int(setDurationSeconds) : nil,
                                 weightUnit: unit,
                                 context: modelContext
                             )

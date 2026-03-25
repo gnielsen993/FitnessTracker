@@ -64,9 +64,13 @@ struct WorkoutLiveActivity: Widget {
             } compactLeading: {
                 // Timer/status on left to avoid music app overlap on trailing side
                 if context.state.restTimerFinished {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                        .font(.caption2)
+                    ZStack {
+                        Circle().stroke(.green, lineWidth: 1.5)
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(.green)
+                            .font(.caption2.weight(.bold))
+                    }
+                    .frame(width: 18, height: 18)
                 } else if let endDate = context.state.restTimerEndDate, endDate > .now {
                     Text(timerInterval: Date.now...endDate, countsDown: true)
                         .monospacedDigit()
@@ -85,8 +89,12 @@ struct WorkoutLiveActivity: Widget {
             } minimal: {
                 // Minimal view should prioritize timer visibility over branding icon.
                 if context.state.restTimerFinished {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                    ZStack {
+                        Circle().stroke(.green, lineWidth: 1.5)
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(.green)
+                            .font(.caption2.weight(.bold))
+                    }
                 } else if let endDate = context.state.restTimerEndDate, endDate > .now {
                     Image(systemName: "timer")
                         .foregroundStyle(.orange)

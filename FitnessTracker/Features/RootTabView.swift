@@ -67,6 +67,13 @@ struct RootTabView: View {
                     .padding(.bottom, 56)
             }
         }
+
+        .onAppear {
+            WorkoutActivityManager.shared.cleanupOrphanedActivities(hasActiveWorkout: activeSession != nil)
+            if activeSession == nil {
+                RestTimerRuntime.setEndDate(nil)
+            }
+        }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { tick in
             now = tick
         }

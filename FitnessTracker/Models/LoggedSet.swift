@@ -15,6 +15,7 @@ final class LoggedSet {
     var cardioInclinePercent: Double?
     var pinPosition: String?
     var isBodyweight: Bool
+    var durationSeconds: Int?
     var weightUnit: String = "lbs"
 
     var loggedExercise: LoggedExercise?
@@ -32,6 +33,7 @@ final class LoggedSet {
         cardioInclinePercent: Double? = nil,
         pinPosition: String? = nil,
         isBodyweight: Bool = false,
+        durationSeconds: Int? = nil,
         weightUnit: String = "lbs",
         loggedExercise: LoggedExercise? = nil
     ) {
@@ -47,6 +49,7 @@ final class LoggedSet {
         self.cardioInclinePercent = cardioInclinePercent
         self.pinPosition = pinPosition
         self.isBodyweight = isBodyweight
+        self.durationSeconds = durationSeconds
         self.weightUnit = weightUnit
         self.loggedExercise = loggedExercise
     }
