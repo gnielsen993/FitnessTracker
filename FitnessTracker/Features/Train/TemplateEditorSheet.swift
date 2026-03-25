@@ -18,8 +18,7 @@ struct TemplateEditorSheet: View {
     @State private var cardioName = ""
     @State private var customExerciseName = ""
     @State private var customExerciseCategory = "Custom"
-    @State private var customExerciseEquipment = "Machine"
-    @State private var expandedCategories: Set<String> = []
+        @State private var expandedCategories: Set<String> = []
 
     private let quickCardio = ["Incline Treadmill Walk", "Jogging", "Cycling", "Rowing", "Hiking"]
 
@@ -41,7 +40,7 @@ struct TemplateEditorSheet: View {
     private func addCustomExercise() {
         let name = customExerciseName.trimmingCharacters(in: .whitespacesAndNewlines)
         let category = customExerciseCategory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Custom" : customExerciseCategory.trimmingCharacters(in: .whitespacesAndNewlines)
-        let equipment = customExerciseEquipment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Machine" : customExerciseEquipment.trimmingCharacters(in: .whitespacesAndNewlines)
+        let equipment = "General"
         guard !name.isEmpty else { return }
 
         if let existing = exercises.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
@@ -139,7 +138,6 @@ struct TemplateEditorSheet: View {
                 Section("Custom Exercise") {
                     TextField("Exercise name", text: $customExerciseName)
                     TextField("Category (e.g., Chest)", text: $customExerciseCategory)
-                    TextField("Equipment (e.g., Machine)", text: $customExerciseEquipment)
                     Button("Add Custom Exercise") {
                         addCustomExercise()
                     }
@@ -196,9 +194,6 @@ struct TemplateEditorSheet: View {
                                     } label: {
                                         VStack(alignment: .leading) {
                                             Text(exercise.name)
-                                            Text(exercise.equipment)
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
                                         }
                                     }
                                     .buttonStyle(.plain)

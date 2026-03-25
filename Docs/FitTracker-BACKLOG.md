@@ -6,9 +6,9 @@
 - #16 timer left-side behavior clarification needed
 - #17 full-width boxes
 - #18 timer done notification polish
-- #28 machine type chooser
 
 ## Completed
+- #28 machine type chooser (refactored to per-set setup variant)
 - #16 left side timer behavior clarification needed
 - #17 full width boxes
 - #30 complete workout feedback

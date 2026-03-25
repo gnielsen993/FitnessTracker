@@ -90,6 +90,12 @@ This log is a human-readable paper trail of product-facing changes.
   - Added app-start cleanup to end stale Live Activities when no workout is active.
   - Enhanced Dynamic Island completion indicator prominence in compact/minimal states.
 
+
+- **#28 Setup variant tracking (single exercise source of truth)**
+  - Removed equipment-specific noise from routine/exercise creation displays.
+  - Added per-entry "Setup / Variant" field in logger and editor (e.g., Cable Station 1, Plate Loaded).
+  - Preserved one canonical exercise name while allowing separate progression contexts.
+
 ### Notes
 - `4c0f6e2` (row tap, exercises-first layout, completion feedback)
 - Commit refs:

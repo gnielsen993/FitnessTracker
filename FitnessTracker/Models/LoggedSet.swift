@@ -16,6 +16,7 @@ final class LoggedSet {
     var pinPosition: String?
     var isBodyweight: Bool
     var durationSeconds: Int?
+    var machineVariant: String?
     var weightUnit: String = "lbs"
 
     var loggedExercise: LoggedExercise?
@@ -34,6 +35,7 @@ final class LoggedSet {
         pinPosition: String? = nil,
         isBodyweight: Bool = false,
         durationSeconds: Int? = nil,
+        machineVariant: String? = nil,
         weightUnit: String = "lbs",
         loggedExercise: LoggedExercise? = nil
     ) {
@@ -50,6 +52,7 @@ final class LoggedSet {
         self.pinPosition = pinPosition
         self.isBodyweight = isBodyweight
         self.durationSeconds = durationSeconds
+        self.machineVariant = machineVariant
         self.weightUnit = weightUnit
         self.loggedExercise = loggedExercise
     }

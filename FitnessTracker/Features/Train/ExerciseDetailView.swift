@@ -31,6 +31,7 @@ struct ExerciseDetailView: View {
     private enum SetMetric: String, CaseIterable, Identifiable { case reps = "Reps", time = "Time"; var id: String { rawValue } }
     @State private var setMetric: SetMetric = .reps
     @State private var setDurationSeconds = "45"
+    @State private var machineVariant = "Default"
     @State private var editingSet: LoggedSet?
     @State private var showingSetEditor = false
 
@@ -46,6 +47,12 @@ struct ExerciseDetailView: View {
 
     private var workingSetCount: Int {
         logged.sets.filter { !$0.isWarmup }.count
+    }
+
+    private var knownVariants: [String] {
+        let vals = Set(logged.sets.compactMap { $0.machineVariant }.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+        let ordered = vals.sorted()
+        return ordered.isEmpty ? ["Default"] : (["Default"] + ordered.filter { $0 != "Default" })
     }
 
     private var isCompleted: Bool {
@@ -270,6 +277,21 @@ struct ExerciseDetailView: View {
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: .infinity)
 
+            TextField("Setup / Variant (e.g., Cable Station 1)", text: $machineVariant)
+                .font(theme.typography.body)
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: .infinity)
+
+            TextField("Setup / Variant (e.g., Cable Station 1)", text: $machineVariant)
+                .font(theme.typography.body)
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: .infinity)
+
+            TextField("Setup / Variant (e.g., Cable Station 1)", text: $machineVariant)
+                .font(theme.typography.body)
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: .infinity)
+
             Picker("Metric", selection: $setMetric) {
                 ForEach(SetMetric.allCases) { metric in
                     Text(metric.rawValue).tag(metric)
@@ -469,18 +491,22 @@ struct ExerciseDetailView: View {
             if let incline = set.cardioInclinePercent { parts.append(String(format: "%g%% incline", incline)) }
             return parts.joined(separator: " • ")
         }
+        let variantPrefix: String = {
+            if let v = set.machineVariant, !v.isEmpty, v != "Default" { return "[\(v)] " }
+            return ""
+        }()
         if let duration = set.durationSeconds {
-            if set.isBodyweight { return "Bodyweight • \(duration)s" }
-            if let pin = set.pinPosition, !pin.isEmpty { return "\(pin) • \(duration)s" }
-            return "\(String(format: "%g", set.weight)) \(set.weightUnit) • \(duration)s"
+            if set.isBodyweight { return "\(variantPrefix)Bodyweight • \(duration)s" }
+            if let pin = set.pinPosition, !pin.isEmpty { return "\(variantPrefix)\(pin) • \(duration)s" }
+            return "\(variantPrefix)\(String(format: "%g", set.weight)) \(set.weightUnit) • \(duration)s"
         }
         if set.isBodyweight {
-            return "Bodyweight × \(set.reps)"
+            return "\(variantPrefix)Bodyweight × \(set.reps)"
         }
         if let pin = set.pinPosition, !pin.isEmpty {
-            return "\(pin) × \(set.reps)"
+            return "\(variantPrefix)\(pin) × \(set.reps)"
         }
-        return "\(String(format: "%g", set.weight)) \(set.weightUnit) × \(set.reps)"
+        return "\(variantPrefix)\(String(format: "%g", set.weight)) \(set.weightUnit) × \(set.reps)"
     }
 
     private func prefillFromLastSet() {
@@ -498,6 +524,7 @@ struct ExerciseDetailView: View {
             loggerMode = last.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
             setMetric = (last.durationSeconds != nil) ? .time : .reps
             setDurationSeconds = last.durationSeconds.map(String.init) ?? "45"
+            machineVariant = last.machineVariant ?? "Default"
         }
     }
 
@@ -517,6 +544,7 @@ struct ExerciseDetailView: View {
             loggerMode = last.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
             setMetric = (last.durationSeconds != nil) ? .time : .reps
             setDurationSeconds = last.durationSeconds.map(String.init) ?? "45"
+            machineVariant = last.machineVariant ?? "Default"
             return
         }
 
@@ -535,6 +563,7 @@ struct ExerciseDetailView: View {
             loggerMode = lastHistorical.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
             setMetric = (lastHistorical.durationSeconds != nil) ? .time : .reps
             setDurationSeconds = lastHistorical.durationSeconds.map(String.init) ?? "45"
+            machineVariant = lastHistorical.machineVariant ?? "Default"
         }
     }
 
@@ -553,6 +582,7 @@ struct ExerciseDetailView: View {
             try viewModel.addSet(
                 reps: reps, weight: weight, isWarmup: setIsWarmup,
                 durationSeconds: duration,
+                machineVariant: machineVariant.trimmingCharacters(in: .whitespacesAndNewlines),
                 weightUnit: selectedWeightUnit.rawValue,
                 to: logged, context: modelContext
             )
@@ -594,6 +624,7 @@ struct ExerciseDetailView: View {
                 reps: reps, weight: 0, isWarmup: setIsWarmup,
                 isBodyweight: true,
                 durationSeconds: duration,
+                machineVariant: machineVariant.trimmingCharacters(in: .whitespacesAndNewlines),
                 weightUnit: selectedWeightUnit.rawValue,
                 to: logged, context: modelContext
             )
@@ -616,6 +647,7 @@ struct ExerciseDetailView: View {
                 reps: reps, weight: 0, isWarmup: setIsWarmup,
                 pinPosition: setPinPosition.trimmingCharacters(in: .whitespacesAndNewlines),
                 durationSeconds: duration,
+                machineVariant: machineVariant.trimmingCharacters(in: .whitespacesAndNewlines),
                 weightUnit: selectedWeightUnit.rawValue,
                 to: logged, context: modelContext
             )
@@ -641,6 +673,7 @@ struct ExerciseDetailView: View {
         loggerMode = set.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
         setMetric = (set.durationSeconds != nil) ? .time : .reps
         setDurationSeconds = set.durationSeconds.map(String.init) ?? "45"
+        machineVariant = set.machineVariant ?? "Default"
         showingSetEditor = true
     }
 
@@ -681,6 +714,8 @@ struct ExerciseDetailView: View {
                                 .keyboardType(.numberPad)
 #endif
                         }
+
+                        TextField("Setup / Variant", text: $machineVariant)
 
                         Picker("Mode", selection: $loggerMode) {
                             Text("Weight").tag(LoggerMode.weight)
@@ -747,6 +782,7 @@ struct ExerciseDetailView: View {
                                 pinPosition: loggerMode == .pin ? setPinPosition.trimmingCharacters(in: .whitespacesAndNewlines) : nil,
                                 isBodyweight: loggerMode == .bodyweight,
                                 durationSeconds: setMetric == .time ? Int(setDurationSeconds) : nil,
+                                machineVariant: machineVariant.trimmingCharacters(in: .whitespacesAndNewlines),
                                 weightUnit: unit,
                                 context: modelContext
                             )
