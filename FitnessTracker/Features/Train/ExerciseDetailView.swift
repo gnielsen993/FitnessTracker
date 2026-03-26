@@ -30,8 +30,10 @@ struct ExerciseDetailView: View {
     @State private var setPinPosition = "8th pin"
     private enum SetMetric: String, CaseIterable, Identifiable { case reps = "Reps", time = "Time"; var id: String { rawValue } }
     @State private var setMetric: SetMetric = .reps
-    @State private var setDurationSeconds = "45"
+    @State private var setDurationSeconds = "00:45.00"
     @State private var machineVariant = "Default"
+    @State private var timedEntryRemainingSeconds: Int = 0
+    @State private var timedEntryTimer: Timer?
     @State private var editingSet: LoggedSet?
     @State private var showingSetEditor = false
 
@@ -308,13 +310,14 @@ struct ExerciseDetailView: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: .infinity)
             } else {
-                TextField("Time (sec)", text: $setDurationSeconds)
+                TextField("Time (MM:SS.CC)", text: $setDurationSeconds)
                     .font(theme.typography.body)
 #if os(iOS)
                     .keyboardType(.numberPad)
 #endif
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: .infinity)
+                timedSetControls
             }
 
             Button("Log Set") {
@@ -382,13 +385,14 @@ struct ExerciseDetailView: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: .infinity)
             } else {
-                TextField("Time (sec)", text: $setDurationSeconds)
+                TextField("Time (MM:SS.CC)", text: $setDurationSeconds)
                     .font(theme.typography.body)
 #if os(iOS)
                     .keyboardType(.numberPad)
 #endif
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: .infinity)
+                timedSetControls
             }
 
             Button("Log Set") {
@@ -420,13 +424,14 @@ struct ExerciseDetailView: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: .infinity)
             } else {
-                TextField("Time (sec)", text: $setDurationSeconds)
+                TextField("Time (MM:SS.CC)", text: $setDurationSeconds)
                     .font(theme.typography.body)
 #if os(iOS)
                     .keyboardType(.numberPad)
 #endif
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: .infinity)
+                timedSetControls
             }
 
             Button("Log Set") {
@@ -523,7 +528,7 @@ struct ExerciseDetailView: View {
             setPinPosition = last.pinPosition ?? "8th pin"
             loggerMode = last.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
             setMetric = (last.durationSeconds != nil) ? .time : .reps
-            setDurationSeconds = last.durationSeconds.map(String.init) ?? "45"
+            setDurationSeconds = last.durationSeconds.map(formatDurationInput) ?? "00:45.00"
             machineVariant = last.machineVariant ?? "Default"
         }
     }
@@ -543,7 +548,7 @@ struct ExerciseDetailView: View {
             setPinPosition = last.pinPosition ?? "8th pin"
             loggerMode = last.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
             setMetric = (last.durationSeconds != nil) ? .time : .reps
-            setDurationSeconds = last.durationSeconds.map(String.init) ?? "45"
+            setDurationSeconds = last.durationSeconds.map(formatDurationInput) ?? "00:45.00"
             machineVariant = last.machineVariant ?? "Default"
             return
         }
@@ -562,7 +567,7 @@ struct ExerciseDetailView: View {
             setPinPosition = lastHistorical.pinPosition ?? "8th pin"
             loggerMode = lastHistorical.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
             setMetric = (lastHistorical.durationSeconds != nil) ? .time : .reps
-            setDurationSeconds = lastHistorical.durationSeconds.map(String.init) ?? "45"
+            setDurationSeconds = lastHistorical.durationSeconds.map(formatDurationInput) ?? "00:45.00"
             machineVariant = lastHistorical.machineVariant ?? "Default"
         }
     }
@@ -573,7 +578,7 @@ struct ExerciseDetailView: View {
             return
         }
         let reps = (setMetric == .reps) ? (Int(setReps) ?? 0) : 1
-        let duration = (setMetric == .time) ? Int(setDurationSeconds) : nil
+        let duration = (setMetric == .time) ? parseDurationInput(setDurationSeconds) : nil
         guard (setMetric == .reps ? reps > 0 : (duration ?? 0) > 0) else {
             onError(setMetric == .reps ? "Enter valid reps." : "Enter valid time in seconds.")
             return
@@ -614,7 +619,7 @@ struct ExerciseDetailView: View {
 
     private func saveBodyweightSet() {
         let reps = (setMetric == .reps) ? (Int(setReps) ?? 0) : 1
-        let duration = (setMetric == .time) ? Int(setDurationSeconds) : nil
+        let duration = (setMetric == .time) ? parseDurationInput(setDurationSeconds) : nil
         guard (setMetric == .reps ? reps > 0 : (duration ?? 0) > 0) else {
             onError(setMetric == .reps ? "Enter valid reps." : "Enter valid time in seconds.")
             return
@@ -637,7 +642,7 @@ struct ExerciseDetailView: View {
 
     private func savePinSet() {
         let reps = (setMetric == .reps) ? (Int(setReps) ?? 0) : 1
-        let duration = (setMetric == .time) ? Int(setDurationSeconds) : nil
+        let duration = (setMetric == .time) ? parseDurationInput(setDurationSeconds) : nil
         guard (setMetric == .reps ? reps > 0 : (duration ?? 0) > 0) else {
             onError(setMetric == .reps ? "Enter valid reps." : "Enter valid time in seconds.")
             return
@@ -672,7 +677,7 @@ struct ExerciseDetailView: View {
         setPinPosition = set.pinPosition ?? "8th pin"
         loggerMode = set.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
         setMetric = (set.durationSeconds != nil) ? .time : .reps
-        setDurationSeconds = set.durationSeconds.map(String.init) ?? "45"
+        setDurationSeconds = set.durationSeconds.map(formatDurationInput) ?? "00:45.00"
         machineVariant = set.machineVariant ?? "Default"
         showingSetEditor = true
     }
@@ -709,7 +714,7 @@ struct ExerciseDetailView: View {
                                 .keyboardType(.numberPad)
 #endif
                         } else {
-                            TextField("Time (sec)", text: $setDurationSeconds)
+                            TextField("Time (MM:SS.CC)", text: $setDurationSeconds)
 #if os(iOS)
                                 .keyboardType(.numberPad)
 #endif
@@ -781,7 +786,7 @@ struct ExerciseDetailView: View {
                                 cardioInclinePercent: Double(cardioInclinePercent),
                                 pinPosition: loggerMode == .pin ? setPinPosition.trimmingCharacters(in: .whitespacesAndNewlines) : nil,
                                 isBodyweight: loggerMode == .bodyweight,
-                                durationSeconds: setMetric == .time ? Int(setDurationSeconds) : nil,
+                                durationSeconds: setMetric == .time ? parseDurationInput(setDurationSeconds) : nil,
                                 machineVariant: machineVariant.trimmingCharacters(in: .whitespacesAndNewlines),
                                 weightUnit: unit,
                                 context: modelContext

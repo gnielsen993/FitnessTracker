@@ -96,6 +96,12 @@ This log is a human-readable paper trail of product-facing changes.
   - Added per-entry "Setup / Variant" field in logger and editor (e.g., Cable Station 1, Plate Loaded).
   - Preserved one canonical exercise name while allowing separate progression contexts.
 
+
+- **Timer polish: analog-style timed set UX**
+  - Timed-set input now accepts and displays `MM:SS.CC` style formatting (e.g., `00:45.00`).
+  - Added inline countdown controls (Start/Pause/Reset) in logger hub when Time metric is selected.
+  - Timed entries persist correctly in quick logger + editor save paths.
+
 ### Notes
 - `4c0f6e2` (row tap, exercises-first layout, completion feedback)
 - Commit refs:
