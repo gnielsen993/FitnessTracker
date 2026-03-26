@@ -17,7 +17,6 @@ struct TrainView: View {
 
     @State private var showingExercisePicker = false
     @State private var showingTemplatePicker = false
-    @State private var showingCoverageDetails = false
     @State private var showingNewRoutineSheet = false
     @State private var newRoutineName = ""
     @State private var exerciseSearchText = ""
@@ -28,6 +27,7 @@ struct TrainView: View {
     @State private var showRestDoneBanner = false
     @State private var showWorkoutLoggedBanner = false
     @State private var showRoutineCompleteSheet = false
+    @State private var showCompletedExercises = false
     @State private var lastCompletedRoutineName = "Routine"
     @State private var lastCompletedExercises = 0
     @State private var lastCompletedSets = 0
@@ -169,14 +169,8 @@ struct TrainView: View {
                             }
                         }
 
-                        if let report = viewModel.coverageReport {
-                            Button {
-                                showingCoverageDetails = true
-                            } label: {
-                                CoverageCardView(report: report, theme: theme)
-                            }
-                            .buttonStyle(.plain)
-                        }
+                        workoutControls
+
                     }
                     .padding(.vertical, theme.spacing.l)
                     .padding(.horizontal, theme.spacing.s)
@@ -249,9 +243,6 @@ struct TrainView: View {
                     TemplateEditorSheet(split: split, exercises: exercises)
                         .environmentObject(themeManager)
                 }
-            }
-            .sheet(isPresented: $showingCoverageDetails) {
-                CoverageDetailsView(report: viewModel.coverageReport, theme: theme)
             }
 
             .sheet(isPresented: $showRoutineCompleteSheet) {

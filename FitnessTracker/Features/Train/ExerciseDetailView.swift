@@ -31,8 +31,7 @@ struct ExerciseDetailView: View {
     private enum SetMetric: String, CaseIterable, Identifiable { case reps = "Reps", time = "Time"; var id: String { rawValue } }
     @State private var setMetric: SetMetric = .reps
     @State private var setDurationSeconds = "00:45.00"
-    @State private var machineVariant = "Default"
-    @State private var timedEntryRemainingSeconds: Int = 0
+    @State private var timedEntryElapsedCentiseconds: Int = 0
     @State private var timedEntryTimer: Timer?
     @State private var editingSet: LoggedSet?
     @State private var showingSetEditor = false
@@ -69,6 +68,7 @@ struct ExerciseDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: theme.spacing.l) {
                 headerSection
+                setupNoteSection
                 previousPerformanceSection
                 progressSummarySection
                 setsListSection
@@ -177,6 +177,21 @@ struct ExerciseDetailView: View {
 
     // MARK: - Progress Summary
 
+    private var setupNoteSection: some View {
+        DKCard(theme: theme) {
+            VStack(alignment: .leading, spacing: theme.spacing.xs) {
+                Text("Setup Note")
+                    .font(theme.typography.caption)
+                    .foregroundStyle(theme.colors.textSecondary)
+                TextField("e.g., Rack 8 / Cable 10", text: Binding(
+                    get: { logged.setupNote },
+                    set: { logged.setupNote = $0; try? modelContext.save() }
+                ))
+                .textFieldStyle(.roundedBorder)
+            }
+        }
+    }
+
     private var progressSummarySection: some View {
         DKCard(theme: theme) {
             HStack(spacing: theme.spacing.s) {
@@ -271,28 +286,23 @@ struct ExerciseDetailView: View {
             Toggle("Warm-up", isOn: $setIsWarmup)
                 .font(theme.typography.caption)
 
-            TextField("Weight (\(selectedWeightUnit.displayName.uppercased()))", text: $setWeight)
-                .font(theme.typography.body)
+            HStack {
+                Button("-") {
+                    let w = Double(setWeight) ?? 0
+                    setWeight = String(format: "%g", max(0, w - 5))
+                }
+                TextField("Weight (\(selectedWeightUnit.displayName.uppercased()))", text: $setWeight)
+                    .font(theme.typography.body)
 #if os(iOS)
-                .keyboardType(.decimalPad)
+                    .keyboardType(.decimalPad)
 #endif
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: .infinity)
-
-            TextField("Setup / Variant (e.g., Cable Station 1)", text: $machineVariant)
-                .font(theme.typography.body)
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: .infinity)
-
-            TextField("Setup / Variant (e.g., Cable Station 1)", text: $machineVariant)
-                .font(theme.typography.body)
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: .infinity)
-
-            TextField("Setup / Variant (e.g., Cable Station 1)", text: $machineVariant)
-                .font(theme.typography.body)
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: .infinity)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: .infinity)
+                Button("+") {
+                    let w = Double(setWeight) ?? 0
+                    setWeight = String(format: "%g", w + 5)
+                }
+            }
 
             Picker("Metric", selection: $setMetric) {
                 ForEach(SetMetric.allCases) { metric in
@@ -302,13 +312,17 @@ struct ExerciseDetailView: View {
             .pickerStyle(.segmented)
 
             if setMetric == .reps {
-                TextField("Reps", text: $setReps)
-                    .font(theme.typography.body)
+                HStack {
+                    Button("-") { if let r = Int(setReps), r > 1 { setReps = String(r - 1) } }
+                    TextField("Reps", text: $setReps)
+                        .font(theme.typography.body)
 #if os(iOS)
-                    .keyboardType(.numberPad)
+                        .keyboardType(.numberPad)
 #endif
-                    .textFieldStyle(.roundedBorder)
-                    .frame(maxWidth: .infinity)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: .infinity)
+                    Button("+") { let r = Int(setReps) ?? 0; setReps = String(r + 1) }
+                }
             } else {
                 TextField("Time (MM:SS.CC)", text: $setDurationSeconds)
                     .font(theme.typography.body)
@@ -442,6 +456,84 @@ struct ExerciseDetailView: View {
         }
     }
 
+
+    private var timedSetControls: some View {
+        HStack(spacing: theme.spacing.s) {
+            Text("Timer: \(formatDurationCentiseconds(max(0, timedEntryElapsedCentiseconds)))")
+                .font(theme.typography.caption)
+                .monospacedDigit()
+                .foregroundStyle(theme.colors.textSecondary)
+            Spacer()
+            Button(timedEntryTimer == nil ? "Start" : "Pause") {
+                timedEntryTimer == nil ? startTimedEntryCountdown() : pauseTimedEntryCountdown()
+            }
+            .font(theme.typography.caption)
+            .buttonStyle(.bordered)
+
+            Button("Reset") {
+                resetTimedEntryCountdown()
+            }
+            .font(theme.typography.caption)
+            .buttonStyle(.bordered)
+        }
+    }
+
+    private func parseDurationInput(_ raw: String) -> Int? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let seconds = Int(trimmed), seconds > 0 { return seconds }
+        let main = trimmed.split(separator: ".").first.map(String.init) ?? trimmed
+        if main.contains(":") {
+            let parts = main.split(separator: ":").map(String.init)
+            if parts.count == 2, let mm = Int(parts[0]), let ss = Int(parts[1]) {
+                let total = (mm * 60) + ss
+                return total > 0 ? total : nil
+            }
+        }
+        return nil
+    }
+
+    private func formatDurationInput(_ seconds: Int) -> String {
+        let mm = max(0, seconds) / 60
+        let ss = max(0, seconds) % 60
+        return String(format: "%02d:%02d.00", mm, ss)
+    }
+
+    private func formatDurationCentiseconds(_ centiseconds: Int) -> String {
+        let total = max(0, centiseconds)
+        let mm = total / 6000
+        let ss = (total % 6000) / 100
+        let cs = total % 100
+        return String(format: "%02d:%02d.%02d", mm, ss, cs)
+    }
+
+    private func startTimedEntryCountdown() {
+        timedEntryTimer?.invalidate()
+        if timedEntryElapsedCentiseconds <= 0 {
+            timedEntryElapsedCentiseconds = 0
+            setDurationSeconds = "00:00.00"
+        }
+        let timer = Timer(timeInterval: 0.01, repeats: true) { t in
+            DispatchQueue.main.async {
+                timedEntryElapsedCentiseconds += 1
+                setDurationSeconds = formatDurationCentiseconds(timedEntryElapsedCentiseconds)
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        timedEntryTimer = timer
+    }
+
+    private func pauseTimedEntryCountdown() {
+        timedEntryTimer?.invalidate()
+        timedEntryTimer = nil
+    }
+
+    private func resetTimedEntryCountdown() {
+        timedEntryTimer?.invalidate()
+        timedEntryTimer = nil
+        timedEntryElapsedCentiseconds = 0
+        setDurationSeconds = "00:00.00"
+    }
+
     // MARK: - Progressive Overload
 
     @ViewBuilder
@@ -496,22 +588,18 @@ struct ExerciseDetailView: View {
             if let incline = set.cardioInclinePercent { parts.append(String(format: "%g%% incline", incline)) }
             return parts.joined(separator: " • ")
         }
-        let variantPrefix: String = {
-            if let v = set.machineVariant, !v.isEmpty, v != "Default" { return "[\(v)] " }
-            return ""
-        }()
         if let duration = set.durationSeconds {
-            if set.isBodyweight { return "\(variantPrefix)Bodyweight • \(duration)s" }
-            if let pin = set.pinPosition, !pin.isEmpty { return "\(variantPrefix)\(pin) • \(duration)s" }
-            return "\(variantPrefix)\(String(format: "%g", set.weight)) \(set.weightUnit) • \(duration)s"
+            if set.isBodyweight { return "Bodyweight • \(duration)s" }
+            if let pin = set.pinPosition, !pin.isEmpty { return "\(pin) • \(duration)s" }
+            return "\(String(format: "%g", set.weight)) \(set.weightUnit) • \(duration)s"
         }
         if set.isBodyweight {
-            return "\(variantPrefix)Bodyweight × \(set.reps)"
+            return "Bodyweight × \(set.reps)"
         }
         if let pin = set.pinPosition, !pin.isEmpty {
-            return "\(variantPrefix)\(pin) × \(set.reps)"
+            return "\(pin) × \(set.reps)"
         }
-        return "\(variantPrefix)\(String(format: "%g", set.weight)) \(set.weightUnit) × \(set.reps)"
+        return "\(String(format: "%g", set.weight)) \(set.weightUnit) × \(set.reps)"
     }
 
     private func prefillFromLastSet() {
@@ -528,8 +616,8 @@ struct ExerciseDetailView: View {
             setPinPosition = last.pinPosition ?? "8th pin"
             loggerMode = last.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
             setMetric = (last.durationSeconds != nil) ? .time : .reps
-            setDurationSeconds = last.durationSeconds.map(formatDurationInput) ?? "00:45.00"
-            machineVariant = last.machineVariant ?? "Default"
+            setDurationSeconds = last.durationSeconds.map(formatDurationInput) ?? "00:00.00"
+            timedEntryElapsedCentiseconds = (last.durationSeconds ?? 0) * 100
         }
     }
 
@@ -548,8 +636,8 @@ struct ExerciseDetailView: View {
             setPinPosition = last.pinPosition ?? "8th pin"
             loggerMode = last.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
             setMetric = (last.durationSeconds != nil) ? .time : .reps
-            setDurationSeconds = last.durationSeconds.map(formatDurationInput) ?? "00:45.00"
-            machineVariant = last.machineVariant ?? "Default"
+            setDurationSeconds = last.durationSeconds.map(formatDurationInput) ?? "00:00.00"
+            timedEntryElapsedCentiseconds = (last.durationSeconds ?? 0) * 100
             return
         }
 
@@ -567,8 +655,8 @@ struct ExerciseDetailView: View {
             setPinPosition = lastHistorical.pinPosition ?? "8th pin"
             loggerMode = lastHistorical.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
             setMetric = (lastHistorical.durationSeconds != nil) ? .time : .reps
-            setDurationSeconds = lastHistorical.durationSeconds.map(formatDurationInput) ?? "00:45.00"
-            machineVariant = lastHistorical.machineVariant ?? "Default"
+            setDurationSeconds = lastHistorical.durationSeconds.map(formatDurationInput) ?? "00:00.00"
+            timedEntryElapsedCentiseconds = (lastHistorical.durationSeconds ?? 0) * 100
         }
     }
 
@@ -578,16 +666,16 @@ struct ExerciseDetailView: View {
             return
         }
         let reps = (setMetric == .reps) ? (Int(setReps) ?? 0) : 1
-        let duration = (setMetric == .time) ? parseDurationInput(setDurationSeconds) : nil
+        let duration = (setMetric == .time) ? max(1, timedEntryElapsedCentiseconds / 100) : nil
         guard (setMetric == .reps ? reps > 0 : (duration ?? 0) > 0) else {
-            onError(setMetric == .reps ? "Enter valid reps." : "Enter valid time in seconds.")
+            onError(setMetric == .reps ? "Enter valid reps." : "Start timer and log elapsed time.")
             return
         }
         do {
             try viewModel.addSet(
                 reps: reps, weight: weight, isWarmup: setIsWarmup,
                 durationSeconds: duration,
-                machineVariant: machineVariant.trimmingCharacters(in: .whitespacesAndNewlines),
+                machineVariant: nil,
                 weightUnit: selectedWeightUnit.rawValue,
                 to: logged, context: modelContext
             )
@@ -619,9 +707,9 @@ struct ExerciseDetailView: View {
 
     private func saveBodyweightSet() {
         let reps = (setMetric == .reps) ? (Int(setReps) ?? 0) : 1
-        let duration = (setMetric == .time) ? parseDurationInput(setDurationSeconds) : nil
+        let duration = (setMetric == .time) ? max(1, timedEntryElapsedCentiseconds / 100) : nil
         guard (setMetric == .reps ? reps > 0 : (duration ?? 0) > 0) else {
-            onError(setMetric == .reps ? "Enter valid reps." : "Enter valid time in seconds.")
+            onError(setMetric == .reps ? "Enter valid reps." : "Start timer and log elapsed time.")
             return
         }
         do {
@@ -629,7 +717,7 @@ struct ExerciseDetailView: View {
                 reps: reps, weight: 0, isWarmup: setIsWarmup,
                 isBodyweight: true,
                 durationSeconds: duration,
-                machineVariant: machineVariant.trimmingCharacters(in: .whitespacesAndNewlines),
+                machineVariant: nil,
                 weightUnit: selectedWeightUnit.rawValue,
                 to: logged, context: modelContext
             )
@@ -642,9 +730,9 @@ struct ExerciseDetailView: View {
 
     private func savePinSet() {
         let reps = (setMetric == .reps) ? (Int(setReps) ?? 0) : 1
-        let duration = (setMetric == .time) ? parseDurationInput(setDurationSeconds) : nil
+        let duration = (setMetric == .time) ? max(1, timedEntryElapsedCentiseconds / 100) : nil
         guard (setMetric == .reps ? reps > 0 : (duration ?? 0) > 0) else {
-            onError(setMetric == .reps ? "Enter valid reps." : "Enter valid time in seconds.")
+            onError(setMetric == .reps ? "Enter valid reps." : "Start timer and log elapsed time.")
             return
         }
         do {
@@ -652,7 +740,7 @@ struct ExerciseDetailView: View {
                 reps: reps, weight: 0, isWarmup: setIsWarmup,
                 pinPosition: setPinPosition.trimmingCharacters(in: .whitespacesAndNewlines),
                 durationSeconds: duration,
-                machineVariant: machineVariant.trimmingCharacters(in: .whitespacesAndNewlines),
+                machineVariant: nil,
                 weightUnit: selectedWeightUnit.rawValue,
                 to: logged, context: modelContext
             )
@@ -677,8 +765,8 @@ struct ExerciseDetailView: View {
         setPinPosition = set.pinPosition ?? "8th pin"
         loggerMode = set.isBodyweight ? .bodyweight : (setUsesPinTracking ? .pin : .weight)
         setMetric = (set.durationSeconds != nil) ? .time : .reps
-        setDurationSeconds = set.durationSeconds.map(formatDurationInput) ?? "00:45.00"
-        machineVariant = set.machineVariant ?? "Default"
+        setDurationSeconds = set.durationSeconds.map(formatDurationInput) ?? "00:00.00"
+        timedEntryElapsedCentiseconds = (set.durationSeconds ?? 0) * 100
         showingSetEditor = true
     }
 
@@ -719,8 +807,6 @@ struct ExerciseDetailView: View {
                                 .keyboardType(.numberPad)
 #endif
                         }
-
-                        TextField("Setup / Variant", text: $machineVariant)
 
                         Picker("Mode", selection: $loggerMode) {
                             Text("Weight").tag(LoggerMode.weight)
@@ -787,7 +873,7 @@ struct ExerciseDetailView: View {
                                 pinPosition: loggerMode == .pin ? setPinPosition.trimmingCharacters(in: .whitespacesAndNewlines) : nil,
                                 isBodyweight: loggerMode == .bodyweight,
                                 durationSeconds: setMetric == .time ? parseDurationInput(setDurationSeconds) : nil,
-                                machineVariant: machineVariant.trimmingCharacters(in: .whitespacesAndNewlines),
+                                machineVariant: nil,
                                 weightUnit: unit,
                                 context: modelContext
                             )

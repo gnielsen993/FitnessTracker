@@ -7,6 +7,7 @@ final class LoggedExercise {
     var orderIndex: Int
     var targetWorkingSets: Int
     var isMarkedDone: Bool
+    var setupNote: String
 
     var session: WorkoutSession?
     var exercise: Exercise?
@@ -18,6 +19,7 @@ final class LoggedExercise {
         orderIndex: Int,
         targetWorkingSets: Int = 3,
         isMarkedDone: Bool = false,
+        setupNote: String = "",
         session: WorkoutSession? = nil,
         exercise: Exercise? = nil,
         sets: [LoggedSet] = []
@@ -26,6 +28,7 @@ final class LoggedExercise {
         self.orderIndex = orderIndex
         self.targetWorkingSets = targetWorkingSets
         self.isMarkedDone = isMarkedDone
+        self.setupNote = setupNote
         self.session = session
         self.exercise = exercise
         self.sets = sets

@@ -102,6 +102,13 @@ This log is a human-readable paper trail of product-facing changes.
   - Added inline countdown controls (Start/Pause/Reset) in logger hub when Time metric is selected.
   - Timed entries persist correctly in quick logger + editor save paths.
 
+
+- **Train UX + logging cleanup bundle (#3/#4/#5/#6)**
+  - Reordered Train flow to prioritize active exercises and collapse completed items by default.
+  - Removed coverage from current Train MVP surface (future feature).
+  - Added quick increment controls for reps/weight in logger.
+  - Added per-exercise setup note field in logging section (e.g., Rack 8, Cable 10).
+
 ### Notes
 - `4c0f6e2` (row tap, exercises-first layout, completion feedback)
 - Commit refs:

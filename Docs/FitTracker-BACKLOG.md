@@ -8,6 +8,10 @@
 - #18 timer done notification polish
 
 ## Completed
+- #6 Notes per specific workout
+- #5 Increments behavior
+- #4 Remove coverage + progress cleanup
+- #3 Train tab UX cleanup
 - #28 machine type chooser (refactored to per-set setup variant)
 - #16 left side timer behavior clarification needed
 - #17 full width boxes
