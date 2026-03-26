@@ -28,6 +28,10 @@ struct TrainView: View {
     @State private var showRestDoneBanner = false
     @State private var showWorkoutLoggedBanner = false
     @State private var showRoutineCompleteSheet = false
+    @State private var lastCompletedRoutineName = "Routine"
+    @State private var lastCompletedExercises = 0
+    @State private var lastCompletedSets = 0
+    @State private var lastCompletedDurationMinutes = 0
     @State private var pendingTemplateEdit = false
     @State private var routineToDelete: WorkoutType?
 
@@ -571,6 +575,12 @@ struct TrainView: View {
                             } else {
                                 let completedBeforeEnd = completedExerciseCount
                                 let totalBeforeEnd = totalExerciseCount
+                                if let session = viewModel.activeSession {
+                                    lastCompletedRoutineName = session.workoutType?.name ?? "Routine"
+                                    lastCompletedExercises = completedBeforeEnd
+                                    lastCompletedSets = session.loggedExercises.flatMap(\.sets).filter { !$0.isWarmup }.count
+                                    lastCompletedDurationMinutes = max(1, Int(Date().timeIntervalSince(session.startedAt) / 60))
+                                }
                                 try viewModel.endWorkout(context: modelContext)
                                 stopRestTimer()
                                 withAnimation { showWorkoutLoggedBanner = true }
@@ -624,12 +634,17 @@ struct TrainView: View {
     private var workoutLoggedBanner: some View {
         VStack {
             Spacer()
-            HStack(spacing: 8) {
-                Image(systemName: "checkmark.seal.fill")
-                    .foregroundStyle(theme.colors.success)
-                Text("Workout logged")
-                    .font(theme.typography.body)
-                    .foregroundStyle(theme.colors.textPrimary)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundStyle(theme.colors.success)
+                    Text("Workout saved")
+                        .font(theme.typography.body)
+                        .foregroundStyle(theme.colors.textPrimary)
+                }
+                Text("\(lastCompletedExercises) exercises • \(lastCompletedSets) sets")
+                    .font(theme.typography.caption)
+                    .foregroundStyle(theme.colors.textSecondary)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
@@ -648,9 +663,17 @@ struct TrainView: View {
                 Image(systemName: "party.popper.fill")
                     .font(.system(size: 42))
                     .foregroundStyle(theme.colors.accentPrimary)
-                Text("Routine complete")
+                Text("Routine complete 🎉")
                     .font(theme.typography.title)
                     .foregroundStyle(theme.colors.textPrimary)
+                Text(lastCompletedRoutineName)
+                    .font(theme.typography.headline)
+                    .foregroundStyle(theme.colors.textPrimary)
+
+                Text("\(lastCompletedExercises) exercises • \(lastCompletedSets) sets • \(lastCompletedDurationMinutes) min")
+                    .font(theme.typography.body)
+                    .foregroundStyle(theme.colors.textSecondary)
+
                 Text("Nice work — your workout was saved successfully.")
                     .font(theme.typography.body)
                     .foregroundStyle(theme.colors.textSecondary)
